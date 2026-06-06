@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-amber-50: #F0F5FF;
+  --color-amber-100: #E0EBFF;
+  --color-amber-200: #C2D7FF;
+  --color-amber-250: #A3C2FF;
+  --color-amber-300: #94B7FF;
+  --color-amber-400: #5C93FF;
+  --color-amber-500: #3D7BFF;
+  --color-amber-600: #1D63FF;
+  --color-amber-700: #0E4BDE;
+  --color-amber-705: #0B43C7;
+  --color-amber-750: #0835A1;
+  --color-amber-755: #062E8C;
+  --color-amber-800: #05267A;
+  --color-amber-900: #021447;
+  --color-amber-950: #010B2B;
+}
+
+html {
+  font-size: clamp(93.75%, 2.5vw, 112.5%);
+}
+
+/* Mobile sidebar overlay backdrop */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.sidebar-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile sidebar slide-in */
+.sidebar-mobile {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (max-width: 1023px) {
+  .sidebar-mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+  }
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+}
+
