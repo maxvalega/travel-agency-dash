@@ -23,6 +23,10 @@ web_modules/
 # Optional stylelint cache
 .stylelintcache
 
+# Output directory for Vite/build tools
+dist
+dist-ssr
+
 
 # Output directory for Next.js/Nuxt.js build
 .next/
