@@ -11,6 +11,13 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
   const [pkgPrice, setPkgPrice] = useState('3000')
   const [pkgRegion, setPkgRegion] = useState('Asia')
   const [pkgSlots, setPkgSlots] = useState('15')
+  const [pkgInclusions, setPkgInclusions] = useState({
+    hotel: true,
+    sightseeing: true,
+    guide: true,
+    airportTransfer: true,
+    flight: false
+  })
 
   // Margin Calculator Tool State
   const [calcClient, setCalcClient] = useState('')
@@ -63,6 +70,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       slots: { booked: 0, total: parseInt(pkgSlots) || 10 },
       trend: 'New',
       color: 'bg-stone-100 text-stone-800 border-stone-200',
+      inclusionsSelection: pkgInclusions,
       itinerary: []
     }
 
@@ -76,6 +84,13 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     setPkgPrice('3000')
     setPkgRegion('Asia')
     setPkgSlots('15')
+    setPkgInclusions({
+      hotel: true,
+      sightseeing: true,
+      guide: true,
+      airportTransfer: true,
+      flight: false
+    })
   }
 
   const handleAddItineraryDay = (e) => {
@@ -190,7 +205,39 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                       <span className="px-2 py-0.5 text-[8.5px] font-extrabold uppercase rounded bg-stone-100 text-stone-600 border border-stone-200">
                         {pkg.region}
                       </span>
-                      <span className="text-xs font-bold text-stone-850">${pkg.basePrice.toLocaleString()}</span>
+                      <div className="flex items-center gap-1.5 text-stone-400 bg-stone-50 px-2 py-1 rounded border border-stone-100/60">
+                        <span className="text-xs font-bold text-stone-850 mr-0.5">${pkg.basePrice.toLocaleString()}</span>
+                        {pkg.inclusionsSelection?.hotel && (
+                          <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Hotel Included">
+                            <path d="M3 21V9a2 2 0 012-2h14a2 2 0 012 2v12M10 21v-4a2 2 0 014 0v4" />
+                          </svg>
+                        )}
+                        {pkg.inclusionsSelection?.sightseeing && (
+                          <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Sightseeing Included">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8" fill="currentColor" className="fill-stone-400" />
+                          </svg>
+                        )}
+                        {pkg.inclusionsSelection?.guide && (
+                          <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Guide Included">
+                            <path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        )}
+                        {pkg.inclusionsSelection?.airportTransfer && (
+                          <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Airport Transfer Included">
+                            <path d="M19 17h2c.6 0 1-.4 1-1v-3a2 2 0 00-2-2h-3l-3-4H7L4 11H3c-.6 0-1 .4-1 1v4c0 .6.4 1 1 1h2" />
+                            <circle cx="7" cy="17" r="2" />
+                            <circle cx="17" cy="17" r="2" />
+                            <path d="M9 17h6" />
+                          </svg>
+                        )}
+                        {pkg.inclusionsSelection?.flight && (
+                          <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Flight Included">
+                            <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3.5S19 4 17.5 5.5L14 9L5.8 7.2L3 8.6L11 13l-4 4H3.8L3 21l4-.8l4-4l4.4 8l1.4-2.8z" />
+                          </svg>
+                        )}
+                      </div>
                     </div>
                     <h3 className="text-sm font-bold text-stone-900 group-hover:text-amber-700 transition-colors leading-tight">
                       {pkg.name}
@@ -357,6 +404,108 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 <div className="flex justify-between items-center mt-0.5">
                   <span className="text-[10px] text-stone-400 font-semibold">{selectedPackage.duration} Plan</span>
                   <span className="text-[10px] text-stone-500 font-bold">{selectedPackage.id}</span>
+                </div>
+              </div>
+
+              {/* Manage Inclusions */}
+              <div className="border-t border-stone-100 pt-4 space-y-2">
+                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Inclusions Selection</h4>
+                <div className="grid grid-cols-2 gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200/60">
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackage.inclusionsSelection?.hotel ?? false}
+                      onChange={(e) => {
+                        const updatedPackage = {
+                          ...selectedPackage,
+                          inclusionsSelection: {
+                            ...(selectedPackage.inclusionsSelection || {}),
+                            hotel: e.target.checked
+                          }
+                        }
+                        setPackages(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p))
+                        setSelectedPackage(updatedPackage)
+                      }}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Hotel</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackage.inclusionsSelection?.sightseeing ?? false}
+                      onChange={(e) => {
+                        const updatedPackage = {
+                          ...selectedPackage,
+                          inclusionsSelection: {
+                            ...(selectedPackage.inclusionsSelection || {}),
+                            sightseeing: e.target.checked
+                          }
+                        }
+                        setPackages(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p))
+                        setSelectedPackage(updatedPackage)
+                      }}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Sightseeing</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackage.inclusionsSelection?.guide ?? false}
+                      onChange={(e) => {
+                        const updatedPackage = {
+                          ...selectedPackage,
+                          inclusionsSelection: {
+                            ...(selectedPackage.inclusionsSelection || {}),
+                            guide: e.target.checked
+                          }
+                        }
+                        setPackages(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p))
+                        setSelectedPackage(updatedPackage)
+                      }}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Guide</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackage.inclusionsSelection?.airportTransfer ?? false}
+                      onChange={(e) => {
+                        const updatedPackage = {
+                          ...selectedPackage,
+                          inclusionsSelection: {
+                            ...(selectedPackage.inclusionsSelection || {}),
+                            airportTransfer: e.target.checked
+                          }
+                        }
+                        setPackages(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p))
+                        setSelectedPackage(updatedPackage)
+                      }}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Transfer</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer col-span-2 mt-1 pt-1.5 border-t border-stone-200/60">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackage.inclusionsSelection?.flight ?? false}
+                      onChange={(e) => {
+                        const updatedPackage = {
+                          ...selectedPackage,
+                          inclusionsSelection: {
+                            ...(selectedPackage.inclusionsSelection || {}),
+                            flight: e.target.checked
+                          }
+                        }
+                        setPackages(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p))
+                        setSelectedPackage(updatedPackage)
+                      }}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Flight Included</span>
+                  </label>
                 </div>
               </div>
 
@@ -547,6 +696,57 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     onChange={(e) => setPkgSlots(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-2">Package Inclusions Selection</label>
+                <div className="grid grid-cols-2 gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pkgInclusions.hotel}
+                      onChange={(e) => setPkgInclusions(prev => ({ ...prev, hotel: e.target.checked }))}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Hotel</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pkgInclusions.sightseeing}
+                      onChange={(e) => setPkgInclusions(prev => ({ ...prev, sightseeing: e.target.checked }))}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Sightseeing</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pkgInclusions.guide}
+                      onChange={(e) => setPkgInclusions(prev => ({ ...prev, guide: e.target.checked }))}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Guide</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pkgInclusions.airportTransfer}
+                      onChange={(e) => setPkgInclusions(prev => ({ ...prev, airportTransfer: e.target.checked }))}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Airport Transfer</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 cursor-pointer col-span-2 mt-1 pt-1.5 border-t border-stone-200/60">
+                    <input
+                      type="checkbox"
+                      checked={pkgInclusions.flight}
+                      onChange={(e) => setPkgInclusions(prev => ({ ...prev, flight: e.target.checked }))}
+                      className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Flight Included</span>
+                  </label>
                 </div>
               </div>
 

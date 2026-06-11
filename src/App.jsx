@@ -120,22 +120,22 @@ const initialClients = [
 ]
 
 const initialPackages = [
-  { id: 'PKG-001', name: 'Kyoto Cultural Tour', duration: '7 Days', basePrice: 4800, region: 'Asia', slots: { booked: 18, total: 25 }, trend: '+4 this week', color: 'bg-amber-100 text-amber-800 border-amber-250', itinerary: [
+  { id: 'PKG-001', name: 'Kyoto Cultural Tour', duration: '7 Days', basePrice: 4800, region: 'Asia', slots: { booked: 18, total: 25 }, trend: '+4 this week', color: 'bg-amber-100 text-amber-800 border-amber-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
     { day: 1, title: 'Arrival & Welcome Tea Ceremony', desc: 'Transfer from Kansai Airport via private towncar to Ryokan Kurama. Evening welcome ceremony and Kaiseki dinner.' },
     { day: 2, title: 'Historic Higashiyama District Guided Walk', desc: 'Guided stroll through preserved streets. Visit Kiyomizu-dera Temple and participate in a pottery workshop.' },
     { day: 3, title: 'Golden Pavilion & Bamboo Groves', desc: 'Morning visit to Kinkaku-ji (Golden Pavilion), followed by private rickshaw ride through Arashiyama Bamboo Grove.' },
   ] },
-  { id: 'PKG-002', name: 'Swiss Alps Luxury Hiking', duration: '9 Days', basePrice: 3700, region: 'Europe', slots: { booked: 12, total: 15 }, trend: 'Stable', color: 'bg-orange-100 text-orange-800 border-orange-250', itinerary: [
+  { id: 'PKG-002', name: 'Swiss Alps Luxury Hiking', duration: '9 Days', basePrice: 3700, region: 'Europe', slots: { booked: 12, total: 15 }, trend: 'Stable', color: 'bg-orange-100 text-orange-800 border-orange-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
     { day: 1, title: 'Zurich Arrival & Helicopter to Zermatt', desc: 'Arrival at Zurich Airport. Scenic helicopter transfer to Zermatt. Check-in at Mont Cervin Palace.' },
     { day: 2, title: 'Gornergrat Cogwheel & Matterhorn Views', desc: 'Ride the famous cogwheel railway. Moderate acclimatization hike facing the Matterhorn with private alpine guide.' },
   ] },
-  { id: 'PKG-003', name: 'Maldives Overwater Resort Stay', duration: '5 Days', basePrice: 9800, region: 'Asia', slots: { booked: 8, total: 10 }, trend: '+2 this week', color: 'bg-yellow-100 text-yellow-800 border-yellow-250', itinerary: [
+  { id: 'PKG-003', name: 'Maldives Overwater Resort Stay', duration: '5 Days', basePrice: 9800, region: 'Asia', slots: { booked: 8, total: 10 }, trend: '+2 this week', color: 'bg-yellow-100 text-yellow-800 border-yellow-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
     { day: 1, title: 'Male Speedboat Transfer to Resort', desc: 'Meet-and-greet at Male airport. Premium speedboat transfer to Soneva Jani. Overwater villa check-in.' },
   ] },
-  { id: 'PKG-004', name: 'Tokyo Business Executive Package', duration: '4 Days', basePrice: 14500, region: 'Asia', slots: { booked: 15, total: 30 }, trend: '+1 this week', color: 'bg-stone-200 text-stone-800 border-stone-300', itinerary: [
+  { id: 'PKG-004', name: 'Tokyo Business Executive Package', duration: '4 Days', basePrice: 14500, region: 'Asia', slots: { booked: 15, total: 30 }, trend: '+1 this week', color: 'bg-stone-200 text-stone-800 border-stone-300', inclusionsSelection: { hotel: true, sightseeing: false, guide: false, airportTransfer: true, flight: false }, itinerary: [
     { day: 1, title: 'Shunjuku Penthouse & Business Lounge Access', desc: 'VIP airport assistance and premium executive sedan transfer to Park Hyatt Tokyo.' }
   ] },
-  { id: 'PKG-005', name: 'Swiss Alps Family Stay', duration: '6 Days', basePrice: 7400, region: 'Europe', slots: { booked: 5, total: 12 }, trend: 'Stable', color: 'bg-orange-100 text-orange-850 border-orange-200', itinerary: [
+  { id: 'PKG-005', name: 'Swiss Alps Family Stay', duration: '6 Days', basePrice: 7400, region: 'Europe', slots: { booked: 5, total: 12 }, trend: 'Stable', color: 'bg-orange-100 text-orange-850 border-orange-200', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
     { day: 1, title: 'Geneva Arrival & Scenic Train to Grindelwald', desc: 'Scenic rail journey to Grindelwald. Dinner at traditional chalet.' }
   ] }
 ]
