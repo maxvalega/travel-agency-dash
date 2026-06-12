@@ -5,7 +5,6 @@ import PackagesPage from './components/PackagesPage'
 import ReportsPage from './components/ReportsPage'
 import SettingsPage from './components/SettingsPage'
 import logo from './assets/logo.png'
-import DevSwitcher from './components/DevSwitcher'
 
 const initialClients = [
   { 
@@ -842,7 +841,6 @@ function App() {
           )}
         </div>
       </main>
-      <DevSwitcher />
     </div>
   )
 }
