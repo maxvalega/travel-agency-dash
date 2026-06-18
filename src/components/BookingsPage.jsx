@@ -69,15 +69,9 @@ export default function BookingsPage({
   const handleSaveEditBooking = (e) => {
     e.preventDefault()
     if (!editBookingObj || !editClient || !editPackage || !editAmount || !editDate) return
-    
-    let updatedPackages = [...packages]
+
+    // Slot validation guard (read-only check; backend is the source of truth)
     if (editBookingObj.package !== editPackage) {
-      updatedPackages = updatedPackages.map(p => {
-        if (p.name === editBookingObj.package) {
-          return { ...p, slots: { ...p.slots, booked: Math.max(0, p.slots.booked - 1) } }
-        }
-        return p
-      })
       const targetPkg = packages.find(p => p.name === editPackage)
       if (targetPkg) {
         const slotsLeft = targetPkg.slots.total - targetPkg.slots.booked
@@ -87,17 +81,10 @@ export default function BookingsPage({
           }
           return
         }
-        updatedPackages = updatedPackages.map(p => {
-          if (p.name === editPackage) {
-            return { ...p, slots: { ...p.slots, booked: p.slots.booked + 1 } }
-          }
-          return p
-        })
       }
-      setPackages(updatedPackages)
     }
 
-    const formattedAmount = editAmount.startsWith('$') ? editAmount : `$${parseFloat(editAmount).toLocaleString()}`
+    const formattedAmount = editAmount.startsWith('₹') ? editAmount : `₹${parseFloat(editAmount).toLocaleString('en-IN')}`
     const formattedDate = formatDate(editDate)
 
     const updatedBooking = {
@@ -138,19 +125,6 @@ export default function BookingsPage({
 
   const confirmDeleteBooking = () => {
     if (!bookingToDelete) return
-
-    setPackages(packages.map(p => {
-      if (p.name === bookingToDelete.package) {
-        return {
-          ...p,
-          slots: {
-            ...p.slots,
-            booked: Math.max(0, p.slots.booked - 1)
-          }
-        }
-      }
-      return p
-    }))
 
     setBookings(bookings.filter(b => b.id !== bookingToDelete.id))
     setSelectedBooking(null)
@@ -197,9 +171,9 @@ export default function BookingsPage({
       }
     }
     
-    const newId = `BK-${Math.floor(1000 + Math.random() * 9000)}`
-    const formattedAmount = newAmount.startsWith('$') ? newAmount : `$${parseFloat(newAmount).toLocaleString()}`
-    
+    const newId = `BK-${crypto.randomUUID()}`
+    const formattedAmount = newAmount.startsWith('₹') ? newAmount : `₹${parseFloat(newAmount).toLocaleString('en-IN')}`
+
     const newBookingObj = {
       id: newId,
       client: newClient,
@@ -208,23 +182,9 @@ export default function BookingsPage({
       date: formatDate(newDate),
       status: newStatus
     }
-    
+
     setBookings([newBookingObj, ...bookings])
-    
-    // Update package slots
-    setPackages(packages.map(p => {
-      if (p.name === newPackage) {
-        return {
-          ...p,
-          slots: {
-            ...p.slots,
-            booked: p.slots.booked + 1
-          }
-        }
-      }
-      return p
-    }))
-    
+
     // Log to client profile logs
     setClients(clients.map(c => {
       if (c.name === newClient) {
@@ -475,13 +435,13 @@ export default function BookingsPage({
                 <div className="flex justify-between text-xs">
                   <span className="text-stone-500 font-medium">Deposit Collected</span>
                   <span className="font-semibold text-stone-800">
-                    {selectedBooking.status === 'Paid' ? selectedBooking.amount : '$1,000'}
+                    {selectedBooking.status === 'Paid' ? selectedBooking.amount : '₹1,000'}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs border-t border-stone-100 pt-2">
                   <span className="text-stone-800 font-bold">Outstanding Balance</span>
                   <span className={`font-bold ${selectedBooking.status === 'Paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {selectedBooking.status === 'Paid' ? '$0' : '$2,700'}
+                    {selectedBooking.status === 'Paid' ? '₹0' : '₹2,700'}
                   </span>
                 </div>
               </div>
@@ -618,14 +578,14 @@ export default function BookingsPage({
                 >
                   <option value="">Select a package...</option>
                   {packages.map(p => (
-                    <option key={p.id} value={p.name}>{p.name} ({p.duration} - ${p.basePrice})</option>
+                    <option key={p.id} value={p.name}>{p.name} ({p.duration} - ₹{p.basePrice})</option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (USD)</label>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (INR)</label>
                   <input
                     type="number"
                     required
@@ -734,14 +694,14 @@ export default function BookingsPage({
                 >
                   <option value="">Select a package...</option>
                   {packages.map(p => (
-                    <option key={p.id} value={p.name}>{p.name} ({p.duration} - ${p.basePrice})</option>
+                    <option key={p.id} value={p.name}>{p.name} ({p.duration} - ₹{p.basePrice})</option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (USD)</label>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (INR)</label>
                   <input
                     type="number"
                     required

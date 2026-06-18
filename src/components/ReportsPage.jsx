@@ -1,32 +1,33 @@
 export default function ReportsPage({ bookings = [], packages = [], clients = [], settings = {} }) {
-  const mockAgents = [
-    { id: 'A-001', name: 'Seraphina Moon', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' },
-    { id: 'A-002', name: 'Lucas Sand', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' },
-    { id: 'A-003', name: 'Elena Stone', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' },
-    { id: 'A-004', name: 'Daniel Gold', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80' }
-  ]
-  
-  const markupPercent = parseFloat(settings?.rules?.markup || '18')
-  const splitPercent = parseFloat(settings?.rules?.agentSplit || '45')
+  const markupPercent = parseFloat(settings?.rules?.markup ?? settings?.defaultMarkup?.toString() ?? '15')
+  const splitPercent = parseFloat(settings?.rules?.agentSplit ?? settings?.defaultAgentSplit?.toString() ?? '40')
 
-  const agents = mockAgents.map((ag, index) => {
-    const agentBookings = bookings.filter((_, idx) => idx % mockAgents.length === index)
-    const totalB = agentBookings.length
-    const totalVol = agentBookings.reduce((sum, b) => sum + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
-    const totalMargin = totalVol * (markupPercent / (100 + markupPercent))
-    const commission = totalMargin * (splitPercent / 100)
-    
-    return {
-      name: ag.name,
-      avatar: ag.avatar,
-      bookings: totalB,
-      volume: `$${totalVol.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
-      commission: `$${commission.toLocaleString(undefined, {maximumFractionDigits: 0})}`
+  // Derive agents from real booking data — one row per unique non-empty agent
+  const agentMap = new Map()
+  bookings.forEach(b => {
+    const name = (b.agent || '').trim()
+    if (!name || name.toLowerCase() === 'unassigned') return
+    if (!agentMap.has(name)) {
+      agentMap.set(name, { name, bookings: 0, volume: 0 })
     }
-  }).sort((a, b) => b.bookings - a.bookings).map((ag, rankIdx) => ({
-    rank: rankIdx + 1,
-    ...ag
-  }))
+    const entry = agentMap.get(name)
+    entry.bookings += 1
+    entry.volume += parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0)
+  })
+
+  const agents = Array.from(agentMap.values())
+    .map((ag) => {
+      const totalMargin = ag.volume * (markupPercent / (100 + markupPercent))
+      const commission = totalMargin * (splitPercent / 100)
+      return {
+        name: ag.name,
+        bookings: ag.bookings,
+        volume: `₹${ag.volume.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+        commission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+      }
+    })
+    .sort((a, b) => b.bookings - a.bookings)
+    .map((ag, rankIdx) => ({ rank: rankIdx + 1, ...ag }))
 
   const destinationMetrics = packages.map(pkg => {
     const pkgBookings = bookings.filter(b => b.package.toLowerCase() === pkg.name.toLowerCase())
@@ -39,9 +40,9 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
     return {
       destination: `${pkg.name} (${pkg.region})`,
       totalBookings,
-      volume: `$${volume.toLocaleString()}`,
+      volume: `₹${volume.toLocaleString('en-IN')}`,
       avgMargin: `${markupPercent}%`,
-      netProfit: `$${netProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}`
+      netProfit: `₹${netProfit.toLocaleString('en-IN', {maximumFractionDigits: 0})}`
     }
   })
 
@@ -65,9 +66,9 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
       
       return {
         period: p.label.replace(', 2026', ''),
-        incomingPayments: `$${totalInflow.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
-        supplierPayouts: `$${totalOutflow.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
-        projectedCashFlow: `${netFloat >= 0 ? '+' : '-'}$${Math.abs(netFloat).toLocaleString(undefined, {maximumFractionDigits: 0})}`,
+        incomingPayments: `₹${totalInflow.toLocaleString('en-IN', {maximumFractionDigits: 0})}`,
+        supplierPayouts: `₹${totalOutflow.toLocaleString('en-IN', {maximumFractionDigits: 0})}`,
+        projectedCashFlow: `${netFloat >= 0 ? '+' : '-'}₹${Math.abs(netFloat).toLocaleString('en-IN', {maximumFractionDigits: 0})}`,
         status: netFloat > 0 ? 'Healthy' : netFloat === 0 ? 'Zero Float' : 'Deficit'
       }
     })
@@ -108,15 +109,16 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {agents.map((agent) => (
+                  {agents.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-stone-400 text-xs">
+                        No agents have been assigned to bookings yet.
+                      </td>
+                    </tr>
+                  ) : agents.map((agent) => (
                     <tr key={agent.rank} className="hover:bg-stone-50/20 transition-colors duration-200 text-xs">
                       <td className="py-3 px-6 text-center font-bold text-stone-500">#{agent.rank}</td>
-                      <td className="py-3 px-6 font-semibold text-stone-900">
-                        <div className="flex items-center gap-2.5">
-                          <img src={agent.avatar} className="w-7.5 h-7.5 rounded-lg object-cover" />
-                          <span>{agent.name}</span>
-                        </div>
-                      </td>
+                      <td className="py-3 px-6 font-semibold text-stone-900">{agent.name}</td>
                       <td className="py-3 px-6 text-center font-medium text-stone-700">{agent.bookings}</td>
                       <td className="py-3 px-6 font-bold text-stone-850">{agent.volume}</td>
                       <td className="py-3 px-6 text-emerald-700 font-bold">{agent.commission}</td>

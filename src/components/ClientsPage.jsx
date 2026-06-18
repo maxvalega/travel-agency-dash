@@ -1,8 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-export default function ClientsPage({ clients, setClients, bookings, addNotification }) {
+export default function ClientsPage({ clients, setClients, bookings, addNotification, initialSelectedClientId, onSelectClient }) {
   const [search, setSearch] = useState('')
-  const [selectedClient, setSelectedClient] = useState(null)
+  const [selectedClient, setSelectedClient] = useState(() => {
+    if (initialSelectedClientId) {
+      return clients.find(c => c.id === initialSelectedClientId) || null
+    }
+    return null
+  })
+
+  useEffect(() => {
+    if (initialSelectedClientId) {
+      const found = clients.find(c => c.id === initialSelectedClientId)
+      if (found && (!selectedClient || selectedClient.id !== initialSelectedClientId)) {
+        setSelectedClient(found)
+      }
+    }
+  }, [initialSelectedClientId, clients])
+
+  useEffect(() => {
+    if (onSelectClient) {
+      onSelectClient(selectedClient ? selectedClient.id : null)
+    }
+  }, [selectedClient, onSelectClient])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [logClient, setLogClient] = useState(null)
@@ -33,7 +53,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
     return {
       ...client,
       bookingsCount: totalCount,
-      ltv: `$${totalLtv.toLocaleString()}`,
+      ltv: `₹${totalLtv.toLocaleString('en-IN')}`,
       nextTrip: stats.nextTrip
     }
   })
@@ -41,6 +61,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   // New Client Creation Form States
   const [newName, setNewName] = useState('')
+  const [newAvatar, setNewAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80')
   const [newEmail, setNewEmail] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [prefAirline, setPrefAirline] = useState('')
@@ -60,6 +81,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   // Edit Client Form States
   const [editName, setEditName] = useState('')
+  const [editAvatar, setEditAvatar] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editPrefAirline, setEditPrefAirline] = useState('')
@@ -77,20 +99,58 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
   const [editWalletAmt, setEditWalletAmt] = useState('0')
   const [editAgentNotes, setEditAgentNotes] = useState('')
 
+  const handleAvatarUpload = async (e, isEdit = false) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (addNotification) addNotification('File size exceeds the 5MB limit!', 'warning')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      if (addNotification) addNotification('Uploading avatar...', 'info')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error || 'Failed to upload image')
+      }
+
+      const data = await response.json()
+      if (isEdit) {
+        setEditAvatar(data.imageUrl)
+      } else {
+        setNewAvatar(data.imageUrl)
+      }
+      if (addNotification) addNotification('Avatar uploaded successfully!', 'success')
+    } catch (err) {
+      console.error(err)
+      if (addNotification) addNotification(err.message || 'Avatar upload failed', 'error')
+    }
+  }
+
   const handleAddClient = (e) => {
     e.preventDefault()
     if (!newName || !newEmail || !newPhone) return
 
     const newClientObj = {
-      id: `C-${Math.floor(100 + Math.random() * 900)}`,
+      id: `C-${crypto.randomUUID()}`,
       name: newName,
       email: newEmail,
       phone: newPhone,
       status: 'Active',
       tier: 'Silver',
-      ltv: '$0',
+      ltv: '₹0',
       bookingsCount: 0,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
+      avatar: newAvatar,
       preferences: {
         airline: prefAirline || 'Standard Carrier',
         seat: prefSeat,
@@ -112,7 +172,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: emergPhone || 'Not Listed',
         relation: emergRelation || 'Not Listed'
       },
-      walletBalance: `$${parseFloat(walletAmt || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: `₹${parseFloat(walletAmt || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
       notes: agentNotes || 'No notes added yet.',
       lastContact: new Date().toISOString().split('T')[0],
       nextTrip: 'None scheduled',
@@ -130,6 +190,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
     // Reset creation fields
     setNewName('')
+    setNewAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80')
     setNewEmail('')
     setNewPhone('')
     setPrefAirline('')
@@ -150,6 +211,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   const handleOpenEdit = (client) => {
     setEditName(client.name)
+    setEditAvatar(client.avatar || '')
     setEditEmail(client.email)
     setEditPhone(client.phone)
     setEditPrefAirline(client.preferences?.airline || '')
@@ -164,7 +226,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
     setEditEmergName(client.emergencyContact?.name || '')
     setEditEmergPhone(client.emergencyContact?.phone || '')
     setEditEmergRelation(client.emergencyContact?.relation || '')
-    setEditWalletAmt(client.walletBalance ? client.walletBalance.replace('$', '').replace(/,/g, '') : '0')
+    setEditWalletAmt(client.walletBalance ? client.walletBalance.replace('₹', '').replace('$', '').replace(/,/g, '') : '0')
     setEditAgentNotes(client.notes || '')
     setShowEditForm(true)
   }
@@ -178,6 +240,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
       name: editName,
       email: editEmail,
       phone: editPhone,
+      avatar: editAvatar,
       preferences: {
         airline: editPrefAirline || 'Standard Carrier',
         seat: editPrefSeat,
@@ -199,7 +262,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: editEmergPhone || 'Not Listed',
         relation: editEmergRelation || 'Not Listed'
       },
-      walletBalance: `$${parseFloat(editWalletAmt || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: `₹${parseFloat(editWalletAmt || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
       notes: editAgentNotes,
       logs: [
         { time: new Date().toISOString().replace('T', ' ').substring(0, 16), text: 'System: Client profile details updated by agent' },
@@ -442,7 +505,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 </div>
                 <div className="bg-[#FAF9F5] border border-stone-200/50 p-3 rounded-xl text-center">
                   <span className="text-[9px] text-stone-400 font-bold uppercase block mb-1">Travel Wallet</span>
-                  <span className="text-sm font-extrabold text-amber-750">{selectedClient.walletBalance || '$0.00'}</span>
+                  <span className="text-sm font-extrabold text-amber-750">{selectedClient.walletBalance || '₹0.00'}</span>
                 </div>
               </div>
 
@@ -660,6 +723,31 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
             </div>
             
             <form onSubmit={handleAddClient} className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 p-3 bg-stone-50/50 border border-stone-200 rounded-xl">
+                <div className="w-12 h-12 rounded-xl bg-stone-100 p-0.5 shadow-inner shrink-0 relative group overflow-hidden">
+                  <img src={newAvatar} alt="Avatar Preview" className="w-full h-full object-cover rounded-[10px]" />
+                </div>
+                <div className="flex-grow">
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Client Photo / Avatar</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleAvatarUpload(e, false)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
+                    >
+                      Choose Image
+                    </button>
+                    <span className="text-[9px] text-stone-400 ml-2">Max 5MB</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Full Name</label>
@@ -698,7 +786,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Initial Travel Credit ($)</label>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Initial Travel Credit (₹)</label>
                   <input
                     type="number"
                     placeholder="e.g. 450"
@@ -912,6 +1000,31 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
             </div>
             
             <form onSubmit={handleSaveEdit} className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 p-3 bg-stone-50/50 border border-stone-200 rounded-xl">
+                <div className="w-12 h-12 rounded-xl bg-stone-100 p-0.5 shadow-inner shrink-0 relative group overflow-hidden">
+                  <img src={editAvatar} alt="Avatar Preview" className="w-full h-full object-cover rounded-[10px]" />
+                </div>
+                <div className="flex-grow">
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Client Photo / Avatar</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleAvatarUpload(e, true)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
+                    >
+                      Choose Image
+                    </button>
+                    <span className="text-[9px] text-stone-400 ml-2">Max 5MB</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Full Name</label>
@@ -950,7 +1063,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Travel Wallet Credit ($)</label>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Travel Wallet Credit (₹)</label>
                   <input
                     type="number"
                     placeholder="e.g. 450"

@@ -1,6 +1,110 @@
 import { useState } from 'react'
 
 export default function SettingsPage({ settings = {}, setSettings, addNotification }) {
+  const [editingOfferId, setEditingOfferId] = useState(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [offerForm, setOfferForm] = useState({
+    title: '',
+    subtitle: '',
+    imageUrl: '',
+    buttonText: 'Explore Packages',
+    targetPage: 'destinations'
+  })
+
+  const handleSaveOffer = (e) => {
+    e.preventDefault()
+    if (!offerForm.title || !offerForm.subtitle || !offerForm.imageUrl) {
+      if (addNotification) addNotification('Please fill in all required fields', 'warning')
+      return
+    }
+
+    const currentOffers = settings.specialOffers || []
+    let updatedOffers
+
+    if (editingOfferId) {
+      updatedOffers = currentOffers.map(o => o.id === editingOfferId ? { ...o, ...offerForm } : o)
+      if (addNotification) addNotification('Special offer updated successfully!', 'success')
+    } else {
+      const newOffer = {
+        ...offerForm,
+        id: Date.now().toString()
+      }
+      updatedOffers = [...currentOffers, newOffer]
+      if (addNotification) addNotification('Special offer added successfully!', 'success')
+    }
+
+    setSettings({
+      ...settings,
+      specialOffers: updatedOffers
+    })
+
+    setOfferForm({
+      title: '',
+      subtitle: '',
+      imageUrl: '',
+      buttonText: 'Explore Packages',
+      targetPage: 'destinations'
+    })
+    setEditingOfferId(null)
+    setIsFormOpen(false)
+  }
+
+  const handleEditOffer = (offer) => {
+    setOfferForm({
+      title: offer.title,
+      subtitle: offer.subtitle,
+      imageUrl: offer.imageUrl,
+      buttonText: offer.buttonText || 'Explore Packages',
+      targetPage: offer.targetPage || 'destinations'
+    })
+    setEditingOfferId(offer.id)
+    setIsFormOpen(true)
+  }
+
+  const handleDeleteOffer = (id) => {
+    const currentOffers = settings.specialOffers || []
+    const updatedOffers = currentOffers.filter(o => o.id !== id)
+    setSettings({
+      ...settings,
+      specialOffers: updatedOffers
+    })
+    if (addNotification) addNotification('Special offer deleted successfully!', 'info')
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (addNotification) addNotification('File size exceeds the 5MB limit!', 'warning')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      if (addNotification) addNotification('Uploading image...', 'info')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error || 'Failed to upload image')
+      }
+
+      const data = await response.json()
+      setOfferForm(prev => ({ ...prev, imageUrl: data.imageUrl }))
+      if (addNotification) addNotification('Image uploaded successfully!', 'success')
+    } catch (err) {
+      console.error(err)
+      if (addNotification) addNotification(err.message || 'Image upload failed', 'error')
+    }
+  }
+
   const permissions = settings.permissions || {
     admin: { viewFinancials: true, editPricing: true, supplierCreds: true, clientScans: true },
     manager: { viewFinancials: true, editPricing: true, supplierCreds: false, clientScans: true },
@@ -62,12 +166,13 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
     })
   }
 
-  const defaultMarkup = parseInt(settings.rules?.markup || '18')
-  const defaultAgentSplit = parseInt(settings.rules?.agentSplit || '45')
+  const defaultMarkup = parseInt(settings.rules?.markup ?? settings.defaultMarkup ?? '15')
+  const defaultAgentSplit = parseInt(settings.rules?.agentSplit ?? settings.defaultAgentSplit ?? '40')
 
   const setDefaultMarkup = (val) => {
     setSettings({
       ...settings,
+      defaultMarkup: val,
       rules: {
         ...settings.rules,
         markup: val.toString()
@@ -78,6 +183,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
   const setDefaultAgentSplit = (val) => {
     setSettings({
       ...settings,
+      defaultAgentSplit: val,
       rules: {
         ...settings.rules,
         agentSplit: val.toString()
@@ -85,8 +191,10 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
     })
   }
 
-  const agencyName = settings.agencyName || 'KRAFT YOUR TRIP'
-  const agencyAddress = settings.agencyAddress || '456 Sandstone Ave, Suite 100, San Francisco, CA'
+  const agencyName = settings.agencyName ?? ''
+  const agencyAddress = settings.agencyAddress ?? ''
+  const agencyPhone = settings.agencyPhone ?? ''
+  const agencyEmail = settings.agencyEmail ?? ''
 
   const setAgencyName = (val) => {
     setSettings({
@@ -99,6 +207,20 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
     setSettings({
       ...settings,
       agencyAddress: val
+    })
+  }
+
+  const setAgencyPhone = (val) => {
+    setSettings({
+      ...settings,
+      agencyPhone: val
+    })
+  }
+
+  const setAgencyEmail = (val) => {
+    setSettings({
+      ...settings,
+      agencyEmail: val
     })
   }
 
@@ -188,65 +310,227 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
             </div>
           </section>
 
-          {/* Supplier API Connector Credentials */}
+          {/* Special Offers Banner Management */}
           <section className="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-sm space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-stone-900 tracking-tight">Supplier API Integration Portal</h3>
-              <p className="text-[11px] text-stone-400">Establish direct links with flight aggregators (GDS) and hotel bed banks.</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-bold text-stone-900 tracking-tight">Special Offers Banner Management</h3>
+                <p className="text-[11px] text-stone-400">Add, edit, or delete promotional offer banners displayed on the customer-facing home page.</p>
+              </div>
+              {!isFormOpen && (
+                <button
+                  onClick={() => {
+                    setEditingOfferId(null)
+                    setOfferForm({
+                      title: '',
+                      subtitle: '',
+                      imageUrl: '',
+                      buttonText: 'Explore Packages',
+                      targetPage: 'destinations'
+                    })
+                    setIsFormOpen(true)
+                  }}
+                  className="text-[10px] font-bold px-3 py-1.5 bg-amber-600 hover:bg-amber-550 border border-transparent text-white rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Offer
+                </button>
+              )}
             </div>
 
-            <div className="space-y-4">
-              {Object.keys(apis).map((apiName) => {
-                const api = apis[apiName]
-                return (
-                  <div key={apiName} className="p-4 bg-[#FAF9F5]/50 border border-stone-200/40 rounded-xl space-y-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-stone-900 uppercase">{apiName} API</span>
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border ${
-                          api.connected ? 'bg-emerald-50 text-emerald-700 border-emerald-250' : 'bg-stone-100 text-stone-400 border-stone-200'
-                        }`}>
-                          {api.connected ? 'Connected' : 'Offline'}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => toggleApiConnection(apiName)}
-                        className={`text-[10px] font-bold px-3 py-1 rounded-lg border transition-all ${
-                          api.connected
-                            ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-                            : 'bg-amber-600 hover:bg-amber-500 border-transparent text-white'
-                        }`}
-                      >
-                        {api.connected ? 'Disconnect' : 'Connect'}
-                      </button>
-                    </div>
+            {/* Form */}
+            {isFormOpen && (
+              <form onSubmit={handleSaveOffer} className="p-4 bg-[#FAF9F5]/50 border border-stone-200/40 rounded-xl space-y-4 animate-in fade-in duration-200">
+                <h4 className="text-xs font-bold text-stone-900 uppercase">
+                  {editingOfferId ? 'Edit Special Offer' : 'Add New Special Offer'}
+                </h4>
 
-                    {api.connected && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Target Endpoint</label>
-                          <input
-                            type="text"
-                            readOnly
-                            value={api.endpoint}
-                            className="w-full bg-stone-100 border border-stone-200 rounded-lg p-2 text-stone-500 font-mono outline-none"
-                          />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Offer Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Maldives Paradise Escape"
+                      value={offerForm.title}
+                      onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
+                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Offer Subtitle / Description</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Book a luxury 5-day overwater villa stay and receive a complimentary couples spa."
+                      value={offerForm.subtitle}
+                      onChange={(e) => setOfferForm({ ...offerForm, subtitle: e.target.value })}
+                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">CTA Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., View Packages"
+                      value={offerForm.buttonText}
+                      onChange={(e) => setOfferForm({ ...offerForm, buttonText: e.target.value })}
+                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Target Page</label>
+                    <select
+                      value={offerForm.targetPage}
+                      onChange={(e) => setOfferForm({ ...offerForm, targetPage: e.target.value })}
+                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                    >
+                      <option value="destinations">Explore Packages (Destinations)</option>
+                      <option value="booking">Inquire Form (Booking)</option>
+                      <option value="about">About Page</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Banner Image</label>
+                    {offerForm.imageUrl ? (
+                      <div className="flex items-center gap-3 p-2.5 bg-stone-50 border border-stone-200 rounded-xl">
+                        <img
+                          src={offerForm.imageUrl}
+                          alt="Preview"
+                          className="w-16 h-10 object-cover rounded-lg border border-stone-200 shrink-0"
+                        />
+                        <div className="flex-grow min-w-0">
+                          <span className="block text-[8px] font-bold text-stone-400 uppercase">Selected Image</span>
+                          <span className="block text-[9px] text-stone-600 truncate">{offerForm.imageUrl}</span>
                         </div>
-                        <div>
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Access Token / Key</label>
-                          <input
-                            type="password"
-                            placeholder="Enter Key..."
-                            value={api.key}
-                            onChange={(e) => handleApiKeyChange(apiName, e.target.value)}
-                            className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-850 font-mono outline-none"
-                          />
+                        <button
+                          type="button"
+                          onClick={() => setOfferForm({ ...offerForm, imageUrl: '' })}
+                          className="text-[9px] font-bold px-2 py-1 bg-white hover:bg-stone-150 border border-stone-200 rounded-lg text-stone-600 transition-all shrink-0 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-stone-200 hover:border-amber-400 rounded-xl p-4 text-center cursor-pointer transition-all bg-white relative group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <svg className="w-5 h-5 text-stone-400 group-hover:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[10px] font-bold text-stone-600">Upload Banner Image (Max 5MB)</span>
+                          <span className="text-[8px] text-stone-400">Compatible with PNG, JPG, WEBP, GIF, SVG</span>
                         </div>
                       </div>
                     )}
+
+                    {/* Presets */}
+                    <div className="space-y-1.5">
+                      <span className="block text-[8px] font-bold text-stone-450 uppercase tracking-wider">Quick Presets:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'Maldives Paradise', url: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1000&q=80' },
+                          { name: 'Swiss Alps Hiking', url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80' },
+                          { name: 'Santorini Sunset', url: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1000&q=80' },
+                          { name: 'African Safari', url: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1000&q=80' },
+                          { name: 'Tokyo City', url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1000&q=80' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setOfferForm({ ...offerForm, imageUrl: preset.url })}
+                            className={`text-[9px] px-2.5 py-1 rounded-md border font-semibold transition-all ${offerForm.imageUrl === preset.url
+                              ? 'bg-amber-500/10 border-amber-450 text-amber-800'
+                              : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                              }`}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                )
-              })}
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFormOpen(false)
+                      setEditingOfferId(null)
+                    }}
+                    className="text-[10px] font-bold px-3 py-1.5 bg-stone-100 hover:bg-stone-250 text-stone-700 rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="text-[10px] font-bold px-3 py-1.5 bg-amber-600 hover:bg-amber-550 text-white rounded-lg transition-all"
+                  >
+                    {editingOfferId ? 'Save Changes' : 'Create Offer'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* List */}
+            <div className="space-y-3">
+              {(settings.specialOffers || []).length === 0 ? (
+                <div className="py-6 text-center text-stone-400 text-xs border border-dashed border-stone-200 rounded-xl">
+                  No promotional offers configured. Fallback banners will be displayed on the customer site.
+                </div>
+              ) : (
+                (settings.specialOffers || []).map((offer) => (
+                  <div key={offer.id} className="flex items-center gap-3 p-3 bg-stone-50/30 border border-stone-200/40 rounded-xl">
+                    <img
+                      src={offer.imageUrl}
+                      alt={offer.title}
+                      className="w-16 h-12 object-cover rounded-lg border border-stone-200/50 shrink-0"
+                    />
+                    <div className="flex-grow min-w-0">
+                      <h4 className="text-xs font-bold text-stone-900 truncate">{offer.title}</h4>
+                      <p className="text-[10px] text-stone-500 truncate">{offer.subtitle}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[8px] font-bold bg-amber-500/10 text-amber-700 px-1.5 py-0.5 rounded border border-amber-500/10 uppercase">
+                          {offer.buttonText || 'Explore'}
+                        </span>
+                        <span className="text-[8px] font-bold bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded uppercase border border-stone-200/30">
+                          ➔ {offer.targetPage === 'booking' ? 'Booking Form' : offer.targetPage === 'about' ? 'About Page' : 'Destinations'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEditOffer(offer)}
+                        className="p-1.5 text-stone-500 hover:text-stone-850 hover:bg-stone-200/50 rounded-lg transition-all"
+                        title="Edit Offer"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOffer(offer.id)}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                        title="Delete Offer"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </div>
@@ -321,11 +605,32 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                 ></textarea>
               </div>
 
+              <div>
+                <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Contact Phone Number</label>
+                <input
+                  type="text"
+                  value={agencyPhone}
+                  onChange={(e) => setAgencyPhone(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Contact Email Address</label>
+                <input
+                  type="email"
+                  value={agencyEmail}
+                  onChange={(e) => setAgencyEmail(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                />
+              </div>
+
               <div className="pt-2">
                 <span className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Branded Header Preview</span>
                 <div className="p-3 bg-stone-100 rounded-xl border border-stone-200 border-dashed text-center">
                   <h4 className="text-xs font-bold text-stone-900 tracking-tight">{agencyName}</h4>
-                  <p className="text-[8px] text-stone-400/80">{agencyAddress}</p>
+                  <p className="text-[8px] text-stone-400/85 leading-normal">{agencyAddress}</p>
+                  <p className="text-[8px] text-stone-400/80 mt-1">{agencyPhone} | {agencyEmail}</p>
                 </div>
               </div>
             </div>

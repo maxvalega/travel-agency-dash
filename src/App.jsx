@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import BookingsPage from './components/BookingsPage'
 import ClientsPage from './components/ClientsPage'
 import PackagesPage from './components/PackagesPage'
@@ -6,163 +6,25 @@ import ReportsPage from './components/ReportsPage'
 import SettingsPage from './components/SettingsPage'
 import logo from './assets/logo.png'
 
-const initialClients = [
-  { 
-    id: 'C-001', 
-    name: 'Sophia Loren', 
-    email: 'sophia@loren.com', 
-    phone: '+1 (555) 019-2831', 
-    status: 'Active', 
-    tier: 'Platinum', 
-    historicalLtv: 19700, 
-    historicalBookingsCount: 3, 
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80', 
-    preferences: { airline: 'Singapore Airlines', seat: 'Window', room: 'Suite / High Floor', dietary: 'None' }, 
-    passport: { number: 'US9827361', expires: '2026-11-20', status: 'Expiring Soon' }, 
-    visa: { country: 'Japan', expires: '2027-04-12', class: 'Tourist' },
-    emergencyContact: { name: 'Carlo Ponti Jr.', phone: '+1 (555) 019-8800', relation: 'Son' },
-    walletBalance: '$450.00',
-    notes: 'Loves boutique ryokans and traditional gardens. Prefers morning flights to avoid late check-ins.',
-    lastContact: '2026-06-02',
-    logs: [
-      { time: '2026-06-02 14:32', text: 'Call logs: Confirmed Swiss flight voucher' },
-      { time: '2026-05-28 09:15', text: 'Email: Prefers Kyoto over Osaka' }
-    ]
-  },
-  { 
-    id: 'C-002', 
-    name: 'Liam Neeson', 
-    email: 'liam@neeson.com', 
-    phone: '+1 (555) 014-9928', 
-    status: 'Active', 
-    tier: 'Gold', 
-    historicalLtv: 14500, 
-    historicalBookingsCount: 2, 
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80', 
-    preferences: { airline: 'Swiss International', seat: 'Aisle', room: 'Deluxe King', dietary: 'Gluten-Free' }, 
-    passport: { number: 'IE7721832', expires: '2029-05-14', status: 'Valid' }, 
-    visa: { country: 'Switzerland', expires: '2030-08-20', class: 'Schengen' },
-    emergencyContact: { name: 'Micheál Richardson', phone: '+1 (555) 014-0011', relation: 'Son' },
-    walletBalance: '$1,200.00',
-    notes: 'Requires physical training guidelines for hiking packages. Prefers high altitude lodges.',
-    lastContact: '2026-05-29',
-    logs: [
-      { time: '2026-05-29 11:22', text: 'Text: Checked details for Alps hike' },
-      { time: '2026-05-24 16:45', text: 'Call logs: Inquired about flight upgrades' }
-    ]
-  },
-  { 
-    id: 'C-003', 
-    name: 'Dr. Evans', 
-    email: 'dr.evans@medical.org', 
-    phone: '+44 20 7946 0912', 
-    status: 'Active', 
-    tier: 'Platinum', 
-    historicalLtv: 29100, 
-    historicalBookingsCount: 5, 
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80', 
-    preferences: { airline: 'Emirates', seat: 'Window', room: 'Water Villa', dietary: 'Vegetarian' }, 
-    passport: { number: 'GB4482910', expires: '2026-07-08', status: 'Expiring Soon' }, 
-    visa: { country: 'Maldives', expires: 'On Arrival', class: 'Tourist' },
-    emergencyContact: { name: 'Sarah Evans', phone: '+44 20 7946 0888', relation: 'Spouse' },
-    walletBalance: '$0.00',
-    notes: 'Anniversary celebration trip. High privacy requested. Prefers overwater villas away from main docks.',
-    lastContact: '2026-06-03',
-    logs: [
-      { time: '2026-06-03 10:14', text: 'Email: Confirmed Maldivian VIP speedboat transfer' },
-      { time: '2026-05-15 11:00', text: 'System: Anniversary voucher sent' }
-    ]
-  },
-  { 
-    id: 'C-004', 
-    name: 'Tanaka Corp Group', 
-    email: 'travel@tanaka.co.jp', 
-    phone: '+81 3 5555 0123', 
-    status: 'Active', 
-    tier: 'Corporate', 
-    historicalLtv: 69500, 
-    historicalBookingsCount: 7, 
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80', 
-    preferences: { airline: 'Japan Airlines', seat: 'Aisle', room: 'Executive Twin', dietary: 'None' }, 
-    passport: { number: 'JP1192837', expires: '2031-10-12', status: 'Valid' }, 
-    visa: { country: 'United States', expires: '2028-11-05', class: 'B1/B2' },
-    emergencyContact: { name: 'Kenji Tanaka', phone: '+81 3 5555 0199', relation: 'HR Manager' },
-    walletBalance: '$5,400.00',
-    notes: 'Corporate travel coordinator. Fast invoicing critical. Prefers business hotels with conference centers.',
-    lastContact: '2026-06-01',
-    logs: [
-      { time: '2026-06-01 09:00', text: 'System: Auto-invoiced executive stay' },
-      { time: '2026-05-20 13:40', text: 'Email: Corporate budget revision submitted' }
-    ]
-  },
-  { 
-    id: 'C-005', 
-    name: 'The Baker Family', 
-    email: 'bakers@bakerfam.net', 
-    phone: '+1 (555) 017-8833', 
-    status: 'Active', 
-    tier: 'Silver', 
-    historicalLtv: 5000, 
-    historicalBookingsCount: 1, 
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80', 
-    preferences: { airline: 'Lufthansa', seat: 'Adjacent', room: 'Family Suite', dietary: 'Nut Allergy' }, 
-    passport: { number: 'US5543219', expires: '2028-02-18', status: 'Valid' }, 
-    visa: { country: 'Switzerland', expires: '2028-04-30', class: 'Schengen' },
-    emergencyContact: { name: 'Robert Baker Sr.', phone: '+1 (555) 017-9911', relation: 'Grandfather' },
-    walletBalance: '$150.00',
-    notes: 'Traveling with children. Needs baby cot and connecting rooms. Severe peanut allergy caution.',
-    lastContact: '2026-05-18',
-    logs: [
-      { time: '2026-05-18 15:10', text: 'Call logs: Discussed kids play area requirements' }
-    ]
-  }
-]
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = `${API_URL}/api`;
 
-const initialPackages = [
-  { id: 'PKG-001', name: 'Kyoto Cultural Tour', duration: '7 Days', basePrice: 4800, region: 'Asia', slots: { booked: 18, total: 25 }, trend: '+4 this week', color: 'bg-amber-100 text-amber-800 border-amber-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
-    { day: 1, title: 'Arrival & Welcome Tea Ceremony', desc: 'Transfer from Kansai Airport via private towncar to Ryokan Kurama. Evening welcome ceremony and Kaiseki dinner.' },
-    { day: 2, title: 'Historic Higashiyama District Guided Walk', desc: 'Guided stroll through preserved streets. Visit Kiyomizu-dera Temple and participate in a pottery workshop.' },
-    { day: 3, title: 'Golden Pavilion & Bamboo Groves', desc: 'Morning visit to Kinkaku-ji (Golden Pavilion), followed by private rickshaw ride through Arashiyama Bamboo Grove.' },
-  ] },
-  { id: 'PKG-002', name: 'Swiss Alps Luxury Hiking', duration: '9 Days', basePrice: 3700, region: 'Europe', slots: { booked: 12, total: 15 }, trend: 'Stable', color: 'bg-orange-100 text-orange-800 border-orange-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
-    { day: 1, title: 'Zurich Arrival & Helicopter to Zermatt', desc: 'Arrival at Zurich Airport. Scenic helicopter transfer to Zermatt. Check-in at Mont Cervin Palace.' },
-    { day: 2, title: 'Gornergrat Cogwheel & Matterhorn Views', desc: 'Ride the famous cogwheel railway. Moderate acclimatization hike facing the Matterhorn with private alpine guide.' },
-  ] },
-  { id: 'PKG-003', name: 'Maldives Overwater Resort Stay', duration: '5 Days', basePrice: 9800, region: 'Asia', slots: { booked: 8, total: 10 }, trend: '+2 this week', color: 'bg-yellow-100 text-yellow-800 border-yellow-250', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
-    { day: 1, title: 'Male Speedboat Transfer to Resort', desc: 'Meet-and-greet at Male airport. Premium speedboat transfer to Soneva Jani. Overwater villa check-in.' },
-  ] },
-  { id: 'PKG-004', name: 'Tokyo Business Executive Package', duration: '4 Days', basePrice: 14500, region: 'Asia', slots: { booked: 15, total: 30 }, trend: '+1 this week', color: 'bg-stone-200 text-stone-800 border-stone-300', inclusionsSelection: { hotel: true, sightseeing: false, guide: false, airportTransfer: true, flight: false }, itinerary: [
-    { day: 1, title: 'Shunjuku Penthouse & Business Lounge Access', desc: 'VIP airport assistance and premium executive sedan transfer to Park Hyatt Tokyo.' }
-  ] },
-  { id: 'PKG-005', name: 'Swiss Alps Family Stay', duration: '6 Days', basePrice: 7400, region: 'Europe', slots: { booked: 5, total: 12 }, trend: 'Stable', color: 'bg-orange-100 text-orange-850 border-orange-200', inclusionsSelection: { hotel: true, sightseeing: true, guide: true, airportTransfer: true, flight: false }, itinerary: [
-    { day: 1, title: 'Geneva Arrival & Scenic Train to Grindelwald', desc: 'Scenic rail journey to Grindelwald. Dinner at traditional chalet.' }
-  ] }
-]
+const initialClients = []
+
+const initialPackages = []
 
 const initialSettings = {
   defaultMarkup: 15,
   defaultAgentSplit: 40,
-  agencyName: 'KRAFT YOUR TRIP',
-  agencyAddress: '456 Sandstone Ave, Suite 100, San Francisco, CA',
-  permissions: {
-    admin: { viewFinancials: true, editPricing: true, supplierCreds: true, clientScans: true },
-    manager: { viewFinancials: true, editPricing: true, supplierCreds: false, clientScans: true },
-    agent: { viewFinancials: false, editPricing: false, supplierCreds: false, clientScans: true }
-  },
-  apis: {
-    sabre: { connected: true, endpoint: 'https://api.sabre.com/v2/flights', key: '••••••••••••••••••••' },
-    amadeus: { connected: false, endpoint: 'https://api.amadeus.com/v1/booking', key: '' },
-    bedbank: { connected: true, endpoint: 'https://api.hotelbeds.com/hotel/v3', key: '••••••••••••••••••••' }
-  }
+  agencyName: '',
+  agencyAddress: '',
+  agencyPhone: '',
+  agencyEmail: '',
+  permissions: null,
+  apis: null
 }
 
-const initialBookings = [
-  { id: 'BK-9021', client: 'Sophia Loren', package: 'Kyoto Cultural Tour', amount: '$4,800', date: 'Jun 25, 2026', status: 'Paid', agent: 'Seraphina Moon' },
-  { id: 'BK-8840', client: 'Liam Neeson', package: 'Swiss Alps Luxury Hiking', amount: '$3,700', date: 'Jul 12, 2026', status: 'Pending', agent: 'Lucas Sand' },
-  { id: 'BK-7561', client: 'Dr. Evans', package: 'Maldives Overwater Resort Stay', amount: '$9,800', date: 'Jul 28, 2026', status: 'Paid', agent: 'Elena Stone' },
-  { id: 'BK-6204', client: 'Tanaka Corp Group', package: 'Tokyo Business Executive Package', amount: '$14,500', date: 'Aug 05, 2026', status: 'Paid', agent: 'Daniel Gold' },
-  { id: 'BK-5190', client: 'The Baker Family', package: 'Swiss Alps Family Stay', amount: '$7,400', date: 'Aug 18, 2026', status: 'Pending', agent: 'Seraphina Moon' },
-]
+const initialBookings = []
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -173,49 +35,206 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [agentStatus, setAgentStatus] = useState('Online')
-  const [notificationsList, setNotificationsList] = useState([
-    { id: 1, text: 'New booking BK-9021 payment received from Sophia Loren', time: '10 min ago', unread: true, type: 'payment' },
-    { id: 2, text: 'Pending deposit reminder for booking BK-8840 (Liam Neeson)', time: '2 hours ago', unread: true, type: 'reminder' },
-    { id: 3, text: 'Dr. Evans requested invoice update for Maldives Overwater Resort Stay', time: '1 day ago', unread: false, type: 'request' },
-  ])
+  const [notificationsList, setNotificationsList] = useState([])
+  const [selectedClientIdForCRM, setSelectedClientIdForCRM] = useState(null)
 
-  // Lifted and Persisted States
-  const [clients, setClients] = useState(() => {
-    const saved = localStorage.getItem('v_clients')
-    return saved ? JSON.parse(saved) : initialClients
-  })
 
-  const [packages, setPackages] = useState(() => {
-    const saved = localStorage.getItem('v_packages')
-    return saved ? JSON.parse(saved) : initialPackages
-  })
+  // Lifted and Persisted States (Local state updated dynamically, synced with Database)
+  const [clients, rawSetClients] = useState(initialClients)
+  const [packages, rawSetPackages] = useState(initialPackages)
+  const [settings, rawSetSettings] = useState(initialSettings)
+  const [bookings, rawSetBookings] = useState(initialBookings)
 
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('v_settings')
-    return saved ? JSON.parse(saved) : initialSettings
-  })
+  // Use refs to avoid closure staleness during async API updates
+  const clientsRef = useRef(clients)
+  const packagesRef = useRef(packages)
+  const bookingsRef = useRef(bookings)
+  const settingsRef = useRef(settings)
 
-  const [bookings, setBookings] = useState(() => {
-    const saved = localStorage.getItem('v_bookings')
-    return saved ? JSON.parse(saved) : initialBookings
-  })
+  // Holds the in-flight PUT controller so a fresh settings change cancels the prior one
+  const settingsAbortRef = useRef(null)
+  // Pending settings payload + timer id for debounced PUT
+  const settingsDebounceRef = useRef({ timeoutId: null, pending: null })
 
-  // Sync to localStorage
+  useEffect(() => { clientsRef.current = clients }, [clients])
+  useEffect(() => { packagesRef.current = packages }, [packages])
+  useEffect(() => { bookingsRef.current = bookings }, [bookings])
+  useEffect(() => { settingsRef.current = settings }, [settings])
+
+  // Load from backend on mount
   useEffect(() => {
-    localStorage.setItem('v_clients', JSON.stringify(clients))
-  }, [clients])
+    const loadData = async () => {
+      try {
+        const clientsRes = await fetch(`${API_BASE_URL}/clients`)
+        if (clientsRes.ok) rawSetClients(await clientsRes.json())
 
-  useEffect(() => {
-    localStorage.setItem('v_packages', JSON.stringify(packages))
-  }, [packages])
+        const packagesRes = await fetch(`${API_BASE_URL}/packages`)
+        if (packagesRes.ok) rawSetPackages(await packagesRes.json())
 
-  useEffect(() => {
-    localStorage.setItem('v_settings', JSON.stringify(settings))
-  }, [settings])
+        const bookingsRes = await fetch(`${API_BASE_URL}/bookings`)
+        if (bookingsRes.ok) rawSetBookings(await bookingsRes.json())
 
-  useEffect(() => {
-    localStorage.setItem('v_bookings', JSON.stringify(bookings))
-  }, [bookings])
+        const settingsRes = await fetch(`${API_BASE_URL}/settings`)
+        if (settingsRes.ok) rawSetSettings(await settingsRes.json())
+      } catch (err) {
+        console.warn('API connection failed, falling back to initial data/mocks:', err)
+      }
+    }
+    loadData()
+  }, [])
+
+  // Sync wrappers to perform API operations in background
+  const setClients = async (newVal) => {
+    const current = clientsRef.current
+    const resolved = typeof newVal === 'function' ? newVal(current) : newVal
+    rawSetClients(resolved)
+
+    try {
+      if (resolved.length > current.length) {
+        const added = resolved.find(item => !current.some(c => c.id === item.id))
+        if (added) {
+          await fetch(`${API_BASE_URL}/clients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(added)
+          })
+        }
+      } else if (resolved.length < current.length) {
+        const deleted = current.find(item => !resolved.some(r => r.id === item.id))
+        if (deleted) {
+          await fetch(`${API_BASE_URL}/clients/${deleted.id}`, { method: 'DELETE' })
+        }
+      } else {
+        for (const item of resolved) {
+          const original = current.find(c => c.id === item.id)
+          if (original && JSON.stringify(original) !== JSON.stringify(item)) {
+            await fetch(`${API_BASE_URL}/clients/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync clients to backend:', err)
+    }
+  }
+
+  const setPackages = async (newVal) => {
+    const current = packagesRef.current
+    const resolved = typeof newVal === 'function' ? newVal(current) : newVal
+    rawSetPackages(resolved)
+
+    try {
+      if (resolved.length > current.length) {
+        const added = resolved.find(item => !current.some(p => p.id === item.id))
+        if (added) {
+          await fetch(`${API_BASE_URL}/packages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(added)
+          })
+        }
+      } else if (resolved.length < current.length) {
+        const deleted = current.find(item => !resolved.some(r => r.id === item.id))
+        if (deleted) {
+          await fetch(`${API_BASE_URL}/packages/${deleted.id}`, { method: 'DELETE' })
+        }
+      } else {
+        for (const item of resolved) {
+          const original = current.find(p => p.id === item.id)
+          if (original && JSON.stringify(original) !== JSON.stringify(item)) {
+            await fetch(`${API_BASE_URL}/packages/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync packages to backend:', err)
+    }
+  }
+
+  const setBookings = async (newVal) => {
+    const current = bookingsRef.current
+    const resolved = typeof newVal === 'function' ? newVal(current) : newVal
+    rawSetBookings(resolved)
+
+    try {
+      if (resolved.length > current.length) {
+        const added = resolved.find(item => !current.some(b => b.id === item.id))
+        if (added) {
+          await fetch(`${API_BASE_URL}/bookings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(added)
+          })
+        }
+      } else if (resolved.length < current.length) {
+        const deleted = current.find(item => !resolved.some(r => r.id === item.id))
+        if (deleted) {
+          await fetch(`${API_BASE_URL}/bookings/${deleted.id}`, { method: 'DELETE' })
+        }
+      } else {
+        for (const item of resolved) {
+          const original = current.find(b => b.id === item.id)
+          if (original && JSON.stringify(original) !== JSON.stringify(item)) {
+            await fetch(`${API_BASE_URL}/bookings/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync bookings to backend:', err)
+    }
+  }
+
+  const setSettings = async (newVal) => {
+    const current = settingsRef.current
+    const resolved = typeof newVal === 'function' ? newVal(current) : newVal
+    rawSetSettings(resolved)
+
+    // Debounce: hold the latest payload, cancel any in-flight + scheduled PUT
+    settingsDebounceRef.current.pending = resolved
+    if (settingsDebounceRef.current.timeoutId) {
+      clearTimeout(settingsDebounceRef.current.timeoutId)
+    }
+    if (settingsAbortRef.current) {
+      settingsAbortRef.current.abort()
+    }
+    settingsDebounceRef.current.timeoutId = setTimeout(async () => {
+      const payload = settingsDebounceRef.current.pending
+      settingsDebounceRef.current.pending = null
+      settingsDebounceRef.current.timeoutId = null
+      const controller = new AbortController()
+      settingsAbortRef.current = controller
+      try {
+        const res = await fetch(`${API_BASE_URL}/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        })
+        if (!res.ok) {
+          console.error(`Failed to sync settings: backend returned ${res.status}`)
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to sync settings to backend:', err)
+        }
+      } finally {
+        if (settingsAbortRef.current === controller) {
+          settingsAbortRef.current = null
+        }
+      }
+    }, 250)
+  }
 
   const addNotification = (text, type = 'system') => {
     const newNotif = {
@@ -228,43 +247,123 @@ function App() {
     setNotificationsList(prev => [newNotif, ...prev])
   }
 
-  // Dynamic Dashboard Stats Calculations
-  const historicalRevenue = 84300
-  const currentRevenueSum = bookings.reduce((sum, b) => sum + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
-  const totalRevenue = historicalRevenue + currentRevenueSum
-  const formattedGrossRevenue = `$${totalRevenue.toLocaleString()}`
-
-  const historicalClientsCount = 179
-  const totalClientsCount = historicalClientsCount + clients.length
-
-  const yieldVal = (settings.defaultMarkup / (100 + settings.defaultMarkup)) * 100 * 1.242
-  const formattedYield = `${yieldVal.toFixed(1)}%`
-
-  const getMonthlyRevenue = (monthName, baseK) => {
-    const monthBookings = bookings.filter(b => b.date.toLowerCase().includes(monthName.toLowerCase()))
-    const sum = monthBookings.reduce((acc, b) => acc + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
-    const total = baseK * 1000 + sum
-    return {
-      month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-      revenue: total / 1000,
-      label: `$${(total / 1000).toFixed(1)}k`
+  // Dynamic Dashboard Stats Calculations — Indian Tier-2 travel agency
+  const parseAmt = (b) => parseFloat((b.amount || '').replace(/[^0-9.-]+/g, '')) || 0
+  const parseDate = (b) => {
+    // b.date is now the formatted "Jun 25, 2026" string from mapBookingToFrontend
+    if (!b.date) return null
+    const parsed = Date.parse(b.date)
+    if (!isNaN(parsed)) return new Date(parsed)
+    // Fallback for "Jun 25, 2026" — V8 rejects this, parse manually
+    const months = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 }
+    const parts = b.date.replace(/,/g, '').split(/\s+/)
+    if (parts.length === 3 && months[parts[0].toLowerCase()] !== undefined) {
+      return new Date(Date.UTC(parseInt(parts[2]), months[parts[0].toLowerCase()], parseInt(parts[1])))
     }
+    return null
   }
 
-  const chartData = [
-    getMonthlyRevenue('jan', 65),
-    getMonthlyRevenue('feb', 78),
-    getMonthlyRevenue('mar', 95),
-    getMonthlyRevenue('apr', 110),
-    getMonthlyRevenue('may', 124),
-    getMonthlyRevenue('jun', 140.2),
-  ]
+  const now = new Date()
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-  const activeDestinations = [
-    { name: 'Kyoto, Japan', count: packages.find(p => p.id === 'PKG-001')?.slots.booked || 0, trend: '+4 this week', color: 'bg-amber-100 text-amber-800' },
-    { name: 'Swiss Alps, Zermatt', count: (packages.find(p => p.id === 'PKG-002')?.slots.booked || 0) + (packages.find(p => p.id === 'PKG-005')?.slots.booked || 0), trend: 'Stable', color: 'bg-orange-100 text-orange-800' },
-    { name: 'Maldives Overwater', count: packages.find(p => p.id === 'PKG-003')?.slots.booked || 0, trend: '+2 this week', color: 'bg-yellow-100 text-yellow-800' },
-  ]
+  const thisMonthBookings = bookings.filter(b => {
+    const d = parseDate(b)
+    return d && d >= startOfThisMonth
+  })
+  const lastMonthBookings = bookings.filter(b => {
+    const d = parseDate(b)
+    return d && d >= startOfLastMonth && d < startOfThisMonth
+  })
+
+  const thisMonthRevenue = thisMonthBookings.reduce((s, b) => s + parseAmt(b), 0)
+  const lastMonthRevenue = lastMonthBookings.reduce((s, b) => s + parseAmt(b), 0)
+  const monthOverMonth = lastMonthRevenue > 0
+    ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+    : null
+
+  const outstandingRevenue = bookings
+    .filter(b => (b.status || 'Pending') !== 'Paid')
+    .reduce((s, b) => s + parseAmt(b), 0)
+
+  const upcomingDepartures = bookings
+    .filter(b => {
+      const d = parseDate(b)
+      return d && d >= now && d <= fourteenDaysOut
+    })
+    .sort((a, b) => parseDate(a) - parseDate(b))
+
+  const avgBookingValue = bookings.length > 0
+    ? bookings.reduce((s, b) => s + parseAmt(b), 0) / bookings.length
+    : 0
+
+  const newClientsThisMonth = clients.filter(c => {
+    if (!c.lastContact) return false
+    const d = new Date(c.lastContact)
+    return !isNaN(d) && d >= startOfThisMonth
+  }).length
+
+  const pendingFollowUps = clients.filter(c => {
+    if (!c.lastContact) return true
+    const d = new Date(c.lastContact)
+    return !isNaN(d) && d < sevenDaysAgo
+  })
+
+  const formatINRCompact = (n) => {
+    if (!n || n <= 0) return '₹0'
+    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`
+    if (n >= 100000) return `₹${(n / 100000).toFixed(2)}L`
+    if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`
+    return `₹${n.toLocaleString('en-IN')}`
+  }
+
+  // Rolling 6-month revenue chart (replaces hardcoded Jan-Jun)
+  const chartData = (() => {
+    const result = []
+    for (let i = 5; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
+      const monthBookings = bookings.filter(b => {
+        const d = parseDate(b)
+        return d && d >= start && d < end
+      })
+      const sum = monthBookings.reduce((s, b) => s + parseAmt(b), 0)
+      result.push({
+        month: start.toLocaleDateString('en-US', { month: 'short' }),
+        revenue: sum / 1000,
+        label: formatINRCompact(sum)
+      })
+    }
+    return result
+  })()
+  const maxRevenueVal = Math.max(10, ...chartData.map(d => d.revenue))
+
+  // Top destinations THIS MONTH (not all-time)
+  const activeDestinations = (() => {
+    const counts = new Map()
+    thisMonthBookings.forEach(b => {
+      if (!b.package) return
+      counts.set(b.package, (counts.get(b.package) || 0) + 1)
+    })
+    const colors = [
+      'bg-amber-100 text-amber-800',
+      'bg-orange-100 text-orange-850 border-orange-200/40',
+      'bg-yellow-100 text-yellow-800',
+      'bg-emerald-100 text-emerald-800',
+      'bg-rose-100 text-rose-800'
+    ]
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count], idx) => ({
+        name,
+        count,
+        trend: 'This Month',
+        color: colors[idx % colors.length]
+      }))
+  })()
 
   const unreadCount = notificationsList.filter((n) => n.unread).length
 
@@ -594,20 +693,66 @@ function App() {
         <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 flex-1 max-w-7xl w-full mx-auto animate-in fade-in duration-300">
           {activeTab === 'dashboard' && (
             <>
-              {/* Quick Statistics Grid */}
-              <section className="grid grid-cols-2 gap-4 sm:gap-6">
+              {/* Quick Statistics Grid — Indian Tier-2 travel agency */}
+              <section className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5">
                 {[
-                  { label: 'Active Bookings', value: bookings.length.toString(), sub: '+12 finalized this week', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', color: 'bg-amber-50 text-amber-700 border-amber-250/20' },
-                  { label: 'Gross Revenue', value: formattedGrossRevenue, sub: '+18.4% month-over-month', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'bg-orange-50 text-orange-700 border-orange-250/20' },
-                  { label: 'Total Clients', value: totalClientsCount.toString(), sub: '+24 new profiles created', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0', color: 'bg-stone-100 text-stone-700 border-stone-250/20' },
-                  { label: 'Commission Yield', value: formattedYield, sub: 'Avg. gross margin on sales', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z', color: 'bg-yellow-50 text-yellow-700 border-yellow-250/20' },
+                  {
+                    label: 'This Month Revenue',
+                    value: formatINRCompact(thisMonthRevenue),
+                    sub: monthOverMonth === null
+                      ? 'No data last month'
+                      : `${monthOverMonth >= 0 ? '+' : ''}${monthOverMonth.toFixed(1)}% vs last month`,
+                    subTone: monthOverMonth === null ? 'neutral' : monthOverMonth >= 0 ? 'good' : 'bad',
+                    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+                    color: 'bg-amber-50 text-amber-700 border-amber-250/20'
+                  },
+                  {
+                    label: 'Active Bookings',
+                    value: bookings.filter(b => (b.status || 'Pending') !== 'Cancelled').length.toString(),
+                    sub: `${bookings.filter(b => b.status === 'Pending').length} pending`,
+                    subTone: 'neutral',
+                    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+                    color: 'bg-orange-50 text-orange-700 border-orange-250/20'
+                  },
+                  {
+                    label: 'Outstanding Payments',
+                    value: formatINRCompact(outstandingRevenue),
+                    sub: 'Awaiting collection',
+                    subTone: 'bad',
+                    icon: 'M3 10h18M5 14h14M5 18h14M5 6h14',
+                    color: 'bg-rose-50 text-rose-700 border-rose-250/20'
+                  },
+                  {
+                    label: 'Departures (14d)',
+                    value: upcomingDepartures.length.toString(),
+                    sub: upcomingDepartures.length > 0 ? 'Next stop: this week' : 'No upcoming trips',
+                    subTone: upcomingDepartures.length > 0 ? 'good' : 'neutral',
+                    icon: 'M3 12l2-2m0 0l7-7 7 7m-9 2v8a2 2 0 002 2h2a2 2 0 002-2v-8m-6 0h6',
+                    color: 'bg-emerald-50 text-emerald-700 border-emerald-250/20'
+                  },
+                  {
+                    label: 'Avg Booking Value',
+                    value: formatINRCompact(avgBookingValue),
+                    sub: `${bookings.length} total bookings`,
+                    subTone: 'neutral',
+                    icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+                    color: 'bg-blue-50 text-blue-700 border-blue-250/20'
+                  },
+                  {
+                    label: 'New Clients (Month)',
+                    value: newClientsThisMonth.toString(),
+                    sub: `${clients.length} total profiles`,
+                    subTone: 'neutral',
+                    icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0M3 20a6 6 0 0112 0v1H3v-1z',
+                    color: 'bg-stone-100 text-stone-700 border-stone-250/20'
+                  }
                 ].map((stat, i) => (
-                  <div key={i} className="bg-white border border-stone-200/80 rounded-2xl p-5 hover:border-stone-300 transition-all duration-300 shadow-sm relative group overflow-hidden">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-stone-500 group-hover:text-stone-700 transition-colors duration-300">
+                  <div key={i} className="bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 hover:border-stone-300 transition-all duration-300 shadow-sm relative group overflow-hidden">
+                    <div className="flex items-start justify-between gap-3 mb-2.5">
+                      <span className="text-xs font-semibold text-stone-500 group-hover:text-stone-700 transition-colors duration-300 leading-tight">
                         {stat.label}
                       </span>
-                      <div className={`w-8.5 h-8.5 rounded-lg ${stat.color} flex items-center justify-center shadow-sm border border-stone-200/20`}>
+                      <div className={`w-8.5 h-8.5 rounded-lg ${stat.color} flex items-center justify-center shadow-sm border border-stone-200/20 shrink-0`}>
                         <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
                         </svg>
@@ -616,7 +761,11 @@ function App() {
                     <h3 className="text-xl font-bold text-stone-900 mb-1 tracking-tight">
                       {stat.value}
                     </h3>
-                    <p className="text-[10px] text-stone-400 font-medium">
+                    <p className={`text-[10px] font-medium leading-normal ${
+                      stat.subTone === 'good' ? 'text-emerald-600' :
+                      stat.subTone === 'bad'  ? 'text-rose-600' :
+                                               'text-stone-400'
+                    }`}>
                       {stat.sub}
                     </p>
                   </div>
@@ -697,7 +846,7 @@ function App() {
                         Monthly Revenue Distribution
                       </h3>
                       <p className="text-xs text-stone-400">
-                        Gross monthly bookings growth (USD) over the last two quarters.
+                        Gross monthly bookings (INR) — rolling 6-month view.
                       </p>
                     </div>
 
@@ -711,7 +860,7 @@ function App() {
                           </span>
                           {/* Bar */}
                           <div
-                            style={{ height: `${Math.min(100, (data.revenue / 180) * 100)}%` }}
+                            style={{ height: `${Math.min(100, (data.revenue / maxRevenueVal) * 100)}%` }}
                             className="w-6 sm:w-10 bg-amber-500/20 group-hover:bg-amber-500 rounded-t-md transition-all duration-500 ease-out shadow-sm border border-transparent group-hover:border-amber-600/10"
                           ></div>
                           {/* Month Label */}
@@ -749,6 +898,59 @@ function App() {
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </section>
+
+                  {/* Pending Follow-ups Panel */}
+                  <section className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base font-bold text-stone-900 tracking-tight">
+                          Pending Follow-ups
+                        </h3>
+                        <p className="text-xs text-stone-400">
+                          Clients not contacted in the last 7 days.
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-250/20">
+                        {pendingFollowUps.length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                      {pendingFollowUps.length === 0 ? (
+                        <p className="text-xs text-stone-400 italic text-center py-6">
+                          All clients are up to date!
+                        </p>
+                      ) : (
+                        pendingFollowUps.map((client, i) => {
+                          const days = client.lastContact 
+                            ? Math.floor((now.getTime() - new Date(client.lastContact).getTime()) / (1000 * 60 * 60 * 24))
+                            : null;
+                          const contactText = days === null 
+                            ? 'Never contacted' 
+                            : `${days} days ago`;
+                          return (
+                            <div key={i} className="flex items-center justify-between p-3.5 bg-[#FAF9F5]/40 rounded-xl border border-stone-200/30">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <h4 className="text-xs font-bold text-stone-900 truncate">{client.name}</h4>
+                                <span className="text-[10px] text-stone-400">
+                                  {contactText}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedClientIdForCRM(client.id)
+                                  setActiveTab('clients')
+                                }}
+                                className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-[10px] font-bold transition-all shrink-0 cursor-pointer"
+                              >
+                                Follow Up
+                              </button>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </section>
 
@@ -808,6 +1010,8 @@ function App() {
               setClients={setClients}
               bookings={bookings}
               addNotification={addNotification}
+              initialSelectedClientId={selectedClientIdForCRM}
+              onSelectClient={setSelectedClientIdForCRM}
             />
           )}
 
