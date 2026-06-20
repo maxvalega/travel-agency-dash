@@ -18,7 +18,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
       return
     }
 
-    const currentOffers = settings.specialOffers || []
+    const currentOffers = settings.specialOffers ?? []
     let updatedOffers
 
     if (editingOfferId) {
@@ -54,15 +54,15 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
       title: offer.title,
       subtitle: offer.subtitle,
       imageUrl: offer.imageUrl,
-      buttonText: offer.buttonText || 'Explore Packages',
-      targetPage: offer.targetPage || 'destinations'
+      buttonText: offer.buttonText ?? 'Explore Packages',
+      targetPage: offer.targetPage ?? 'destinations'
     })
     setEditingOfferId(offer.id)
     setIsFormOpen(true)
   }
 
   const handleDeleteOffer = (id) => {
-    const currentOffers = settings.specialOffers || []
+    const currentOffers = settings.specialOffers ?? []
     const updatedOffers = currentOffers.filter(o => o.id !== id)
     setSettings({
       ...settings,
@@ -105,7 +105,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
     }
   }
 
-  const permissions = settings.permissions || {
+  const permissions = settings.permissions ?? {
     admin: { viewFinancials: true, editPricing: true, supplierCreds: true, clientScans: true },
     manager: { viewFinancials: true, editPricing: true, supplierCreds: false, clientScans: true },
     agent: { viewFinancials: false, editPricing: false, supplierCreds: false, clientScans: true }
@@ -128,7 +128,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
     }
   }
 
-  const apis = settings.apis || {
+  const apis = settings.apis ?? {
     sabre: { connected: true, endpoint: 'https://api.sabre.com/v2/flights', key: '••••••••••••••••••••' },
     amadeus: { connected: false, endpoint: 'https://api.amadeus.com/v1/booking', key: '' },
     bedbank: { connected: true, endpoint: 'https://api.hotelbeds.com/hotel/v3', key: '••••••••••••••••••••' }
@@ -484,12 +484,12 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
 
             {/* List */}
             <div className="space-y-3">
-              {(settings.specialOffers || []).length === 0 ? (
+              {(settings.specialOffers ?? []).length === 0 ? (
                 <div className="py-6 text-center text-stone-400 text-xs border border-dashed border-stone-200 rounded-xl">
                   No promotional offers configured. Fallback banners will be displayed on the customer site.
                 </div>
               ) : (
-                (settings.specialOffers || []).map((offer) => (
+                (settings.specialOffers ?? []).map((offer) => (
                   <div key={offer.id} className="flex items-center gap-3 p-3 bg-stone-50/30 border border-stone-200/40 rounded-xl">
                     <img
                       src={offer.imageUrl}
@@ -501,7 +501,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                       <p className="text-[10px] text-stone-500 truncate">{offer.subtitle}</p>
                       <div className="flex gap-2 mt-1">
                         <span className="text-[8px] font-bold bg-amber-500/10 text-amber-700 px-1.5 py-0.5 rounded border border-amber-500/10 uppercase">
-                          {offer.buttonText || 'Explore'}
+                          {offer.buttonText ?? 'Explore'}
                         </span>
                         <span className="text-[8px] font-bold bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded uppercase border border-stone-200/30">
                           ➔ {offer.targetPage === 'booking' ? 'Booking Form' : offer.targetPage === 'about' ? 'About Page' : 'Destinations'}

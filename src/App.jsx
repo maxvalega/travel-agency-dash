@@ -5,6 +5,14 @@ import PackagesPage from './components/PackagesPage'
 import ReportsPage from './components/ReportsPage'
 import SettingsPage from './components/SettingsPage'
 import logo from './assets/logo.png'
+import { 
+  getQueue, 
+  enqueueRequest, 
+  removeFromQueue, 
+  clearQueue, 
+  processSyncQueue, 
+  checkServerHealth 
+} from './utils/syncManager'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${API_URL}/api`;
@@ -38,6 +46,11 @@ function App() {
   const [notificationsList, setNotificationsList] = useState([])
   const [selectedClientIdForCRM, setSelectedClientIdForCRM] = useState(null)
 
+  // Server Status & Offline Sync States
+  const [serverStatus, setServerStatus] = useState({ online: null, latency: null, lastChecked: '' })
+  const [queueItems, setQueueItems] = useState([])
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Lifted and Persisted States (Local state updated dynamically, synced with Database)
   const [clients, rawSetClients] = useState(initialClients)
@@ -61,58 +74,164 @@ function App() {
   useEffect(() => { bookingsRef.current = bookings }, [bookings])
   useEffect(() => { settingsRef.current = settings }, [settings])
 
-  // Load from backend on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const clientsRes = await fetch(`${API_BASE_URL}/clients`)
-        if (clientsRes.ok) rawSetClients(await clientsRes.json())
+  // Setup functions for Health Check and Sync
+  const performHealthAndSync = async (showNotificationOnSuccess = false) => {
+    const status = await checkServerHealth(API_URL)
+    const timeStr = new Date().toLocaleTimeString()
+    setServerStatus({
+      online: status.online,
+      latency: status.latency,
+      lastChecked: timeStr
+    })
 
-        const packagesRes = await fetch(`${API_BASE_URL}/packages`)
-        if (packagesRes.ok) rawSetPackages(await packagesRes.json())
-
-        const bookingsRes = await fetch(`${API_BASE_URL}/bookings`)
-        if (bookingsRes.ok) rawSetBookings(await bookingsRes.json())
-
-        const settingsRes = await fetch(`${API_BASE_URL}/settings`)
-        if (settingsRes.ok) rawSetSettings(await settingsRes.json())
-      } catch (err) {
-        console.warn('API connection failed, falling back to initial data/mocks:', err)
+    if (status.online) {
+      const currentQueue = getQueue()
+      setQueueItems(currentQueue)
+      if (currentQueue.length > 0) {
+        setIsSyncing(true)
+        const result = await processSyncQueue(addNotification)
+        setIsSyncing(false)
+        setQueueItems(getQueue())
+        // After syncing, fetch fresh data to sync UI
+        await fetchFreshData()
+      } else if (showNotificationOnSuccess) {
+        addNotification("Connection healthy: backend is online.", "success")
       }
+    } else if (showNotificationOnSuccess) {
+      addNotification("Connection check failed: backend is offline.", "warning")
     }
-    loadData()
+  }
+
+  const fetchFreshData = async () => {
+    try {
+      const clientsRes = await fetch(`${API_BASE_URL}/clients`)
+      if (clientsRes.ok) {
+        const data = await clientsRes.json()
+        rawSetClients(data)
+        localStorage.setItem('kraft_cached_clients', JSON.stringify(data))
+      }
+
+      const packagesRes = await fetch(`${API_BASE_URL}/packages`)
+      if (packagesRes.ok) {
+        const data = await packagesRes.json()
+        rawSetPackages(data)
+        localStorage.setItem('kraft_cached_packages', JSON.stringify(data))
+      }
+
+      const bookingsRes = await fetch(`${API_BASE_URL}/bookings`)
+      if (bookingsRes.ok) {
+        const data = await bookingsRes.json()
+        rawSetBookings(data)
+        localStorage.setItem('kraft_cached_bookings', JSON.stringify(data))
+      }
+
+      const settingsRes = await fetch(`${API_BASE_URL}/settings`)
+      if (settingsRes.ok) {
+        const data = await settingsRes.json()
+        rawSetSettings(data)
+        localStorage.setItem('kraft_cached_settings', JSON.stringify(data))
+      }
+    } catch (err) {
+      console.warn("Failed to fetch fresh data:", err)
+    }
+  }
+
+  // Load from cache instantly, then check health and sync
+  useEffect(() => {
+    // 1. Initial Cache Fallback Loading
+    const cachedClients = localStorage.getItem('kraft_cached_clients')
+    if (cachedClients) rawSetClients(JSON.parse(cachedClients))
+    
+    const cachedPackages = localStorage.getItem('kraft_cached_packages')
+    if (cachedPackages) rawSetPackages(JSON.parse(cachedPackages))
+    
+    const cachedBookings = localStorage.getItem('kraft_cached_bookings')
+    if (cachedBookings) rawSetBookings(JSON.parse(cachedBookings))
+    
+    const cachedSettings = localStorage.getItem('kraft_cached_settings')
+    if (cachedSettings) rawSetSettings(JSON.parse(cachedSettings))
+
+    // 2. Perform initial health check and sync queue
+    performHealthAndSync()
+    
+    // Also perform initial load of server data if queue is empty
+    const currentQueue = getQueue()
+    setQueueItems(currentQueue)
+    if (currentQueue.length === 0) {
+      fetchFreshData()
+    }
+
+    // 3. Setup polling interval every 15 seconds
+    const intervalId = setInterval(() => {
+      performHealthAndSync()
+    }, 15000)
+
+    return () => clearInterval(intervalId)
   }, [])
+
+  // Sync request helper: performs fetch and queues on failure
+  const syncRequest = async (url, method, bodyObj, description) => {
+    const bodyStr = bodyObj ? JSON.stringify(bodyObj) : null
+    const headers = { 'Content-Type': 'application/json' }
+    
+    try {
+      const startTime = Date.now()
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: bodyStr
+      })
+      
+      if (!res.ok) {
+        if (res.status >= 500) {
+          throw new Error(`Server returned ${res.status}`)
+        }
+        addNotification(`Request failed: ${description} (Error ${res.status})`, 'warning')
+        return
+      }
+      
+      const latency = Date.now() - startTime
+      setServerStatus({ online: true, latency, lastChecked: new Date().toLocaleTimeString() })
+    } catch (err) {
+      console.warn(`Request failed for "${description}", queueing offline:`, err)
+      setServerStatus(prev => ({ ...prev, online: false, latency: null }))
+      
+      const updatedQueue = enqueueRequest({
+        url,
+        method,
+        headers,
+        body: bodyStr,
+        description
+      })
+      setQueueItems(updatedQueue)
+      
+      addNotification(`Saved locally: "${description}" will sync when online.`, 'info')
+    }
+  }
 
   // Sync wrappers to perform API operations in background
   const setClients = async (newVal) => {
     const current = clientsRef.current
     const resolved = typeof newVal === 'function' ? newVal(current) : newVal
     rawSetClients(resolved)
+    localStorage.setItem('kraft_cached_clients', JSON.stringify(resolved))
 
     try {
       if (resolved.length > current.length) {
         const added = resolved.find(item => !current.some(c => c.id === item.id))
         if (added) {
-          await fetch(`${API_BASE_URL}/clients`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(added)
-          })
+          await syncRequest(`${API_BASE_URL}/clients`, 'POST', added, `Created client "${added.name}"`)
         }
       } else if (resolved.length < current.length) {
         const deleted = current.find(item => !resolved.some(r => r.id === item.id))
         if (deleted) {
-          await fetch(`${API_BASE_URL}/clients/${deleted.id}`, { method: 'DELETE' })
+          await syncRequest(`${API_BASE_URL}/clients/${deleted.id}`, 'DELETE', null, `Deleted client "${deleted.name}"`)
         }
       } else {
         for (const item of resolved) {
           const original = current.find(c => c.id === item.id)
           if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-            await fetch(`${API_BASE_URL}/clients/${item.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item)
-            })
+            await syncRequest(`${API_BASE_URL}/clients/${item.id}`, 'PUT', item, `Updated client "${item.name}"`)
           }
         }
       }
@@ -125,31 +244,24 @@ function App() {
     const current = packagesRef.current
     const resolved = typeof newVal === 'function' ? newVal(current) : newVal
     rawSetPackages(resolved)
+    localStorage.setItem('kraft_cached_packages', JSON.stringify(resolved))
 
     try {
       if (resolved.length > current.length) {
         const added = resolved.find(item => !current.some(p => p.id === item.id))
         if (added) {
-          await fetch(`${API_BASE_URL}/packages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(added)
-          })
+          await syncRequest(`${API_BASE_URL}/packages`, 'POST', added, `Created package "${added.name}"`)
         }
       } else if (resolved.length < current.length) {
         const deleted = current.find(item => !resolved.some(r => r.id === item.id))
         if (deleted) {
-          await fetch(`${API_BASE_URL}/packages/${deleted.id}`, { method: 'DELETE' })
+          await syncRequest(`${API_BASE_URL}/packages/${deleted.id}`, 'DELETE', null, `Deleted package "${deleted.name}"`)
         }
       } else {
         for (const item of resolved) {
           const original = current.find(p => p.id === item.id)
           if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-            await fetch(`${API_BASE_URL}/packages/${item.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item)
-            })
+            await syncRequest(`${API_BASE_URL}/packages/${item.id}`, 'PUT', item, `Updated package "${item.name}"`)
           }
         }
       }
@@ -162,31 +274,24 @@ function App() {
     const current = bookingsRef.current
     const resolved = typeof newVal === 'function' ? newVal(current) : newVal
     rawSetBookings(resolved)
+    localStorage.setItem('kraft_cached_bookings', JSON.stringify(resolved))
 
     try {
       if (resolved.length > current.length) {
         const added = resolved.find(item => !current.some(b => b.id === item.id))
         if (added) {
-          await fetch(`${API_BASE_URL}/bookings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(added)
-          })
+          await syncRequest(`${API_BASE_URL}/bookings`, 'POST', added, `Created booking "${added.id}"`)
         }
       } else if (resolved.length < current.length) {
         const deleted = current.find(item => !resolved.some(r => r.id === item.id))
         if (deleted) {
-          await fetch(`${API_BASE_URL}/bookings/${deleted.id}`, { method: 'DELETE' })
+          await syncRequest(`${API_BASE_URL}/bookings/${deleted.id}`, 'DELETE', null, `Deleted booking "${deleted.id}"`)
         }
       } else {
         for (const item of resolved) {
           const original = current.find(b => b.id === item.id)
           if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-            await fetch(`${API_BASE_URL}/bookings/${item.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item)
-            })
+            await syncRequest(`${API_BASE_URL}/bookings/${item.id}`, 'PUT', item, `Updated booking "${item.id}"`)
           }
         }
       }
@@ -199,6 +304,7 @@ function App() {
     const current = settingsRef.current
     const resolved = typeof newVal === 'function' ? newVal(current) : newVal
     rawSetSettings(resolved)
+    localStorage.setItem('kraft_cached_settings', JSON.stringify(resolved))
 
     // Debounce: hold the latest payload, cancel any in-flight + scheduled PUT
     settingsDebounceRef.current.pending = resolved
@@ -212,31 +318,12 @@ function App() {
       const payload = settingsDebounceRef.current.pending
       settingsDebounceRef.current.pending = null
       settingsDebounceRef.current.timeoutId = null
-      const controller = new AbortController()
-      settingsAbortRef.current = controller
-      try {
-        const res = await fetch(`${API_BASE_URL}/settings`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        })
-        if (!res.ok) {
-          console.error(`Failed to sync settings: backend returned ${res.status}`)
-        }
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('Failed to sync settings to backend:', err)
-        }
-      } finally {
-        if (settingsAbortRef.current === controller) {
-          settingsAbortRef.current = null
-        }
-      }
+      
+      await syncRequest(`${API_BASE_URL}/settings`, 'PUT', payload, `Updated agency settings`)
     }, 250)
   }
 
-  const addNotification = (text, type = 'system') => {
+  function addNotification(text, type = 'system') {
     const newNotif = {
       id: Date.now(),
       text,
@@ -507,12 +594,163 @@ function App() {
 
           {/* Interactive User & Notification Controls */}
           <div className="flex items-center gap-5 relative">
+            {/* Server Status Badge & Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowStatusDropdown(!showStatusDropdown)
+                  setShowNotifications(false)
+                  setShowProfile(false)
+                }}
+                className={`flex items-center gap-2 py-1.5 px-3 bg-white border rounded-xl transition-all duration-300 shadow-sm ${
+                  showStatusDropdown 
+                    ? 'border-amber-300 bg-amber-50/50' 
+                    : 'border-stone-200 hover:bg-stone-50'
+                }`}
+                title="Server Connection Status"
+              >
+                {/* Status Dot with pulse ring */}
+                <span className="relative flex h-2.5 w-2.5">
+                  {serverStatus.online && !isSyncing && (
+                    <>
+                      <span className="animate-status-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </>
+                  )}
+                  {serverStatus.online === false && (
+                    <>
+                      <span className="animate-status-pulse absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </>
+                  )}
+                  {(serverStatus.online === null || isSyncing) && (
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-spin absolute inline-flex h-full w-full rounded-full border-2 border-amber-500 border-t-transparent"></span>
+                    </span>
+                  )}
+                </span>
+                
+                <span className="text-[10px] font-bold text-stone-750 hidden sm:inline">
+                  {isSyncing ? 'Syncing...' : serverStatus.online ? 'Online' : serverStatus.online === false ? 'Offline' : 'Connecting...'}
+                </span>
+                
+                {queueItems.length > 0 && (
+                  <span className="ml-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    {queueItems.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Status Dropdown Card */}
+              {showStatusDropdown && (
+                <div className="absolute right-0 mt-3.5 w-80 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-4 border-b border-stone-100 flex items-center justify-between">
+                    <h5 className="font-bold text-stone-900 text-xs">Backend Connection</h5>
+                    <button
+                      onClick={() => performHealthAndSync(true)}
+                      disabled={isSyncing}
+                      className="text-[10px] text-amber-700 hover:text-amber-600 font-bold flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                    >
+                      <svg className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89" />
+                      </svg>
+                      Check Now
+                    </button>
+                  </div>
+                  
+                  <div className="p-4 space-y-3.5 text-xs">
+                    {/* Status Info Row */}
+                    <div className="grid grid-cols-2 gap-3 bg-stone-50/50 p-3 rounded-xl border border-stone-200/30">
+                      <div>
+                        <span className="text-[9px] font-bold text-stone-400 uppercase tracking-wider block">Status</span>
+                        <span className={`font-bold ${serverStatus.online ? 'text-emerald-600' : serverStatus.online === false ? 'text-rose-600' : 'text-stone-500'}`}>
+                          {isSyncing ? 'Syncing Queue' : serverStatus.online ? 'Connected' : serverStatus.online === false ? 'Offline Mode' : 'Checking...'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-stone-400 uppercase tracking-wider block">Latency</span>
+                        <span className="font-semibold text-stone-800">
+                          {serverStatus.latency !== null ? `${serverStatus.latency}ms` : '—'}
+                        </span>
+                      </div>
+                      <div className="col-span-2 pt-1 border-t border-stone-100 text-[9px] text-stone-400">
+                        Last checked: {serverStatus.lastChecked || 'Never'}
+                      </div>
+                    </div>
+
+                    {/* Sync Queue Section */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Offline Sync Queue</span>
+                        {queueItems.length > 0 && (
+                          <button
+                            onClick={() => {
+                              clearQueue()
+                              setQueueItems([])
+                              addNotification("Offline sync queue cleared.", "info")
+                            }}
+                            className="text-[9px] text-rose-600 hover:text-rose-500 font-bold"
+                          >
+                            Clear Queue
+                          </button>
+                        )}
+                      </div>
+
+                      {queueItems.length > 0 ? (
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                          {queueItems.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between p-2 bg-[#FAF9F5]/60 border border-stone-200/40 rounded-lg text-[10px]">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <span className="font-semibold text-stone-800 truncate block">{item.description}</span>
+                                <span className="text-[8px] text-stone-400 block font-mono uppercase">{item.method} • {new Date(item.timestamp).toLocaleTimeString()}</span>
+                              </div>
+                              <span className="shrink-0 bg-amber-500/10 text-amber-700 text-[8px] font-bold px-1.5 py-0.5 rounded border border-amber-300/30">
+                                Pending
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-4 text-center text-stone-400 italic text-[11px]">
+                          No pending offline changes.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sync action button */}
+                    {queueItems.length > 0 && (
+                      <button
+                        onClick={() => performHealthAndSync(true)}
+                        disabled={!serverStatus.online || isSyncing}
+                        className="w-full py-2 bg-[#3D7BFF] hover:bg-[#1D63FF] text-white rounded-lg font-bold text-xs shadow-sm disabled:bg-stone-100 disabled:text-stone-400 disabled:shadow-none active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSyncing ? (
+                          <>
+                            <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Syncing...
+                          </>
+                        ) : !serverStatus.online ? (
+                          'Server Offline (Cannot Sync)'
+                        ) : (
+                          'Sync Changes Now'
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Notifications Button */}
             <div className="relative">
               <button
                 onClick={() => {
                   setShowNotifications(!showNotifications)
                   setShowProfile(false)
+                  setShowStatusDropdown(false)
                 }}
                 className={`relative p-2 bg-white border border-stone-200 rounded-xl transition-all duration-300 shadow-sm ${
                   showNotifications ? 'text-amber-700 bg-amber-50 border-amber-300' : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
@@ -553,7 +791,7 @@ function App() {
                           }`}
                         >
                           <div className="flex-1 space-y-1">
-                            <div className="flex items-start justify-between gap-2">
+                             <div className="flex items-start justify-between gap-2">
                               <p className={`text-[11px] leading-relaxed ${notif.unread ? 'font-semibold text-stone-900' : 'text-stone-600'}`}>
                                 {notif.text}
                               </p>
@@ -598,6 +836,7 @@ function App() {
                 onClick={() => {
                   setShowProfile(!showProfile)
                   setShowNotifications(false)
+                  setShowStatusDropdown(false)
                 }}
                 className="flex items-center gap-2.5 text-left group focus:outline-none"
               >

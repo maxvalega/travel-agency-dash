@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react'
 
+const calculatePassportStatus = (expiresStr) => {
+  if (!expiresStr || expiresStr === 'Pending' || expiresStr === 'Not Listed') return 'Pending'
+  const expDate = new Date(expiresStr)
+  if (isNaN(expDate.getTime())) return 'Pending'
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  expDate.setHours(0, 0, 0, 0)
+  if (expDate < today) return 'Expired'
+  const sixMonthsLater = new Date(today)
+  sixMonthsLater.setMonth(today.getMonth() + 6)
+  if (expDate <= sixMonthsLater) return 'Expiring Soon'
+  return 'Valid'
+}
+
 export default function ClientsPage({ clients, setClients, bookings, addNotification, initialSelectedClientId, onSelectClient }) {
   const [search, setSearch] = useState('')
   const [selectedClient, setSelectedClient] = useState(() => {
@@ -48,13 +62,19 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   const clientsWithStats = clients.map(client => {
     const stats = getClientStats(client.name)
-    const totalCount = (client.historicalBookingsCount || 0) + stats.count
-    const totalLtv = (client.historicalLtv || 0) + stats.volume
+    const totalCount = (client.historicalBookingsCount ?? 0) + stats.count
+    const totalLtv = (client.historicalLtv ?? 0) + stats.volume
+    const currentPassport = client.passport ?? { number: 'Pending', expires: 'Pending', status: 'Valid' }
+    const dynamicPassportStatus = calculatePassportStatus(currentPassport.expires)
     return {
       ...client,
       bookingsCount: totalCount,
       ltv: `₹${totalLtv.toLocaleString('en-IN')}`,
-      nextTrip: stats.nextTrip
+      nextTrip: stats.nextTrip,
+      passport: {
+        ...currentPassport,
+        status: dynamicPassportStatus !== 'Pending' ? dynamicPassportStatus : (currentPassport.status ?? 'Valid')
+      }
     }
   })
 
@@ -139,7 +159,53 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   const handleAddClient = (e) => {
     e.preventDefault()
-    if (!newName || !newEmail || !newPhone) return
+    if (!newName.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s name.', 'warning')
+      return
+    }
+    if (!newEmail.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s email address.', 'warning')
+      return
+    }
+    if (!/\S+@\S+\.\S+/.test(newEmail)) {
+      if (addNotification) addNotification('Please enter a valid email address.', 'warning')
+      return
+    }
+    if (!newPhone.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s phone number.', 'warning')
+      return
+    }
+    if (!/^[+0-9\s-()]{7,20}$/.test(newPhone.trim())) {
+      if (addNotification) addNotification('Please enter a valid phone number (at least 7 digits).', 'warning')
+      return
+    }
+    const parsedWallet = parseFloat(walletAmt ?? '0')
+    if (isNaN(parsedWallet) || parsedWallet < 0) {
+      if (addNotification) addNotification('Initial travel credit must be a non-negative number.', 'warning')
+      return
+    }
+    if (passNo.trim() && !passExp) {
+      if (addNotification) addNotification('Please provide the passport expiry date.', 'warning')
+      return
+    }
+    if (passExp && !passNo.trim()) {
+      if (addNotification) addNotification('Please provide the passport number.', 'warning')
+      return
+    }
+    if (visaCountry.trim() && !visaExp) {
+      if (addNotification) addNotification('Please provide the visa expiry date.', 'warning')
+      return
+    }
+    if (visaExp && !visaCountry.trim()) {
+      if (addNotification) addNotification('Please provide the visa target country.', 'warning')
+      return
+    }
+    if (emergPhone.trim() && !/^[+0-9\s-()]{7,20}$/.test(emergPhone.trim())) {
+      if (addNotification) addNotification('Please enter a valid emergency contact phone number.', 'warning')
+      return
+    }
+
+    const calculatedStatus = calculatePassportStatus(passExp)
 
     const newClientObj = {
       id: `C-${crypto.randomUUID()}`,
@@ -160,7 +226,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
       passport: {
         number: passNo || 'Pending',
         expires: passExp || 'Pending',
-        status: 'Valid'
+        status: calculatedStatus
       },
       visa: {
         country: visaCountry || 'Pending',
@@ -172,7 +238,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: emergPhone || 'Not Listed',
         relation: emergRelation || 'Not Listed'
       },
-      walletBalance: `₹${parseFloat(walletAmt || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: `₹${parseFloat(walletAmt ?? 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
       notes: agentNotes || 'No notes added yet.',
       lastContact: new Date().toISOString().split('T')[0],
       nextTrip: 'None scheduled',
@@ -233,7 +299,53 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
   const handleSaveEdit = (e) => {
     e.preventDefault()
-    if (!editName || !editEmail || !editPhone) return
+    if (!editName.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s name.', 'warning')
+      return
+    }
+    if (!editEmail.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s email address.', 'warning')
+      return
+    }
+    if (!/\S+@\S+\.\S+/.test(editEmail)) {
+      if (addNotification) addNotification('Please enter a valid email address.', 'warning')
+      return
+    }
+    if (!editPhone.trim()) {
+      if (addNotification) addNotification('Please enter the client\'s phone number.', 'warning')
+      return
+    }
+    if (!/^[+0-9\s-()]{7,20}$/.test(editPhone.trim())) {
+      if (addNotification) addNotification('Please enter a valid phone number (at least 7 digits).', 'warning')
+      return
+    }
+    const parsedWallet = parseFloat(editWalletAmt ?? '0')
+    if (isNaN(parsedWallet) || parsedWallet < 0) {
+      if (addNotification) addNotification('Travel wallet credit must be a non-negative number.', 'warning')
+      return
+    }
+    if (editPassNo.trim() && !editPassExp) {
+      if (addNotification) addNotification('Please provide the passport expiry date.', 'warning')
+      return
+    }
+    if (editPassExp && !editPassNo.trim()) {
+      if (addNotification) addNotification('Please provide the passport number.', 'warning')
+      return
+    }
+    if (editVisaCountry.trim() && !editVisaExp) {
+      if (addNotification) addNotification('Please provide the visa expiry date.', 'warning')
+      return
+    }
+    if (editVisaExp && !editVisaCountry.trim()) {
+      if (addNotification) addNotification('Please provide the visa target country.', 'warning')
+      return
+    }
+    if (editEmergPhone.trim() && !/^[+0-9\s-()]{7,20}$/.test(editEmergPhone.trim())) {
+      if (addNotification) addNotification('Please enter a valid emergency contact phone number.', 'warning')
+      return
+    }
+
+    const calculatedStatus = calculatePassportStatus(editPassExp)
 
     const updated = {
       ...selectedClient,
@@ -250,7 +362,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
       passport: {
         number: editPassNo || 'Pending',
         expires: editPassExp || 'Pending',
-        status: selectedClient.passport?.status || 'Valid'
+        status: calculatedStatus
       },
       visa: {
         country: editVisaCountry || 'Pending',
@@ -262,7 +374,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: editEmergPhone || 'Not Listed',
         relation: editEmergRelation || 'Not Listed'
       },
-      walletBalance: `₹${parseFloat(editWalletAmt || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: `₹${parseFloat(editWalletAmt ?? 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
       notes: editAgentNotes,
       logs: [
         { time: new Date().toISOString().replace('T', ' ').substring(0, 16), text: 'System: Client profile details updated by agent' },
