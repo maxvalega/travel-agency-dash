@@ -45,7 +45,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
   const getClientStats = (clientName) => {
     const clientBookings = bookings.filter(b => b.client.toLowerCase() === clientName.toLowerCase())
     const currentCount = clientBookings.length
-    const currentVolume = clientBookings.reduce((sum, b) => sum + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
+    const currentVolume = clientBookings.reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
     
     let nextTrip = 'None scheduled'
     const futureBookings = [...clientBookings].sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -238,7 +238,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: emergPhone || 'Not Listed',
         relation: emergRelation || 'Not Listed'
       },
-      walletBalance: `₹${parseFloat(walletAmt ?? 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: parseFloat(walletAmt) || 0,
       notes: agentNotes || 'No notes added yet.',
       lastContact: new Date().toISOString().split('T')[0],
       nextTrip: 'None scheduled',
@@ -292,7 +292,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
     setEditEmergName(client.emergencyContact?.name || '')
     setEditEmergPhone(client.emergencyContact?.phone || '')
     setEditEmergRelation(client.emergencyContact?.relation || '')
-    setEditWalletAmt(client.walletBalance ? client.walletBalance.replace('₹', '').replace('$', '').replace(/,/g, '') : '0')
+    setEditWalletAmt(String(client.walletBalance || 0))
     setEditAgentNotes(client.notes || '')
     setShowEditForm(true)
   }
@@ -374,7 +374,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
         phone: editEmergPhone || 'Not Listed',
         relation: editEmergRelation || 'Not Listed'
       },
-      walletBalance: `₹${parseFloat(editWalletAmt ?? 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      walletBalance: parseFloat(editWalletAmt) || 0,
       notes: editAgentNotes,
       logs: [
         { time: new Date().toISOString().replace('T', ' ').substring(0, 16), text: 'System: Client profile details updated by agent' },
@@ -419,9 +419,9 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
       case 'Platinum':
         return 'bg-purple-50 text-purple-755 border-purple-200/50'
       case 'Gold':
-        return 'bg-amber-50 text-amber-755 border-amber-200/50'
+        return 'bg-amber-50 text-amber-700 border-amber-200/50'
       case 'Corporate':
-        return 'bg-blue-50 text-blue-755 border-blue-200/50'
+        return 'bg-blue-50 text-blue-700 border-blue-200/50'
       default:
         return 'bg-stone-100 text-stone-700 border-stone-200/50'
     }
@@ -461,7 +461,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
               placeholder="Search clients by name, ID, or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-xl py-2.5 pl-12 pr-4 text-xs text-stone-850 outline-none transition-all duration-300"
+              className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-xl py-2.5 pl-12 pr-4 text-xs text-stone-800 outline-none transition-all duration-300"
             />
           </div>
 
@@ -507,7 +507,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 <div className="grid grid-cols-2 gap-2 border-t border-stone-100 mt-3 pt-3 text-center">
                   <div>
                     <span className="text-[9px] font-bold text-stone-400 block uppercase">Bookings</span>
-                    <span className="text-xs font-extrabold text-stone-850">{client.bookingsCount}</span>
+                    <span className="text-xs font-extrabold text-stone-800">{client.bookingsCount}</span>
                   </div>
                   <div>
                     <span className="text-[9px] font-bold text-stone-400 block uppercase">Status</span>
@@ -595,13 +595,13 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
               {/* Prominent Contact Info Block */}
               <div className="bg-stone-50 border border-stone-200/70 p-4 rounded-xl space-y-2.5">
                 <span className="text-[9px] text-stone-400 font-bold uppercase block -mb-1">Contact Channels</span>
-                <div className="flex items-center gap-2.5 text-xs text-stone-855">
+                <div className="flex items-center gap-2.5 text-xs text-stone-800">
                   <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <a href={`mailto:${selectedClient.email}`} className="text-amber-700 hover:underline font-semibold">{selectedClient.email}</a>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-stone-855">
+                <div className="flex items-center gap-2.5 text-xs text-stone-800">
                   <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
@@ -617,13 +617,13 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 </div>
                 <div className="bg-[#FAF9F5] border border-stone-200/50 p-3 rounded-xl text-center">
                   <span className="text-[9px] text-stone-400 font-bold uppercase block mb-1">Travel Wallet</span>
-                  <span className="text-sm font-extrabold text-amber-750">{selectedClient.walletBalance || '₹0.00'}</span>
+                  <span className="text-sm font-extrabold text-amber-700">₹{Number(selectedClient.walletBalance || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
               </div>
 
               {/* Preferences Grid */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Client Preferences Matrix</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Client Preferences Matrix</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-[#FAF9F5]/40 border border-stone-200/40 p-2.5 rounded-xl">
                     <span className="text-[9px] text-stone-400 font-bold uppercase block mb-0.5">Pref Airline</span>
@@ -648,12 +648,12 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
               {/* Compliance Documents Vault (Passports & Visas) */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Compliance Documents Vault</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Compliance Documents Vault</h4>
                 <div className="grid grid-cols-1 gap-2.5">
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/20 flex justify-between items-center">
                     <div>
                       <span className="text-[9px] text-stone-400 font-bold uppercase block">Passport Scans</span>
-                      <span className="text-xs font-semibold text-stone-850">No: {selectedClient.passport.number}</span>
+                      <span className="text-xs font-semibold text-stone-800">No: {selectedClient.passport.number}</span>
                       <span className="text-[10px] text-stone-500 block">Expires: {selectedClient.passport.expires}</span>
                     </div>
                     <span className={`px-2 py-0.5 text-[9px] font-bold rounded-lg border ${
@@ -668,11 +668,11 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/20 flex justify-between items-center">
                     <div>
                       <span className="text-[9px] text-stone-400 font-bold uppercase block">Visa Clearances</span>
-                      <span className="text-xs font-semibold text-stone-850">Class: {selectedClient.visa?.class || 'Tourist'}</span>
+                      <span className="text-xs font-semibold text-stone-800">Class: {selectedClient.visa?.class || 'Tourist'}</span>
                       <span className="text-[10px] text-stone-500 block">Country: {selectedClient.visa?.country || 'Pending'}</span>
                       <span className="text-[10px] text-stone-500 block">Expires: {selectedClient.visa?.expires || 'Pending'}</span>
                     </div>
-                    <span className="px-2 py-0.5 text-[9px] font-bold rounded-lg border bg-stone-100 text-stone-750 border-stone-200">
+                    <span className="px-2 py-0.5 text-[9px] font-bold rounded-lg border bg-stone-100 text-stone-700 border-stone-200">
                       Standard
                     </span>
                   </div>
@@ -681,11 +681,11 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
               {/* Emergency Compliance */}
               <div className="border-t border-stone-100 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Emergency Contact</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Emergency Contact</h4>
                 <div className="p-3 rounded-xl border border-stone-200/80 bg-stone-50/10 text-xs space-y-1.5">
                   <div className="flex justify-between">
                     <span className="text-stone-400">Full Name:</span>
-                    <span className="font-bold text-stone-805">{selectedClient.emergencyContact?.name || 'Not Listed'}</span>
+                    <span className="font-bold text-stone-800">{selectedClient.emergencyContact?.name || 'Not Listed'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-stone-400">Phone No:</span>
@@ -702,8 +702,8 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
 
               {/* Notes Context Panel */}
               <div className="border-t border-stone-100 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Agent Directives & Notes</h4>
-                <div className="p-3 bg-amber-50/10 border border-amber-500/10 rounded-xl text-xs text-stone-650 leading-relaxed italic whitespace-pre-wrap">
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Agent Directives & Notes</h4>
+                <div className="p-3 bg-amber-50/10 border border-amber-500/10 rounded-xl text-xs text-stone-600 leading-relaxed italic whitespace-pre-wrap">
                   {selectedClient.notes || 'No operational notes entered.'}
                 </div>
               </div>
@@ -711,7 +711,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
               {/* Activity Timeline */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Activity Notes Log</h4>
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Activity Notes Log</h4>
                   <button
                     onClick={() => {
                       setLogClient(selectedClient)
@@ -748,14 +748,14 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                         </svg>
                       )
                     } else if (isBooking) {
-                      iconBg = 'bg-emerald-50 text-emerald-600 border-emerald-250/60'
+                      iconBg = 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
                       iconSvg = (
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       )
                     } else if (isUpdate) {
-                      iconBg = 'bg-amber-50 text-amber-600 border-amber-250/60'
+                      iconBg = 'bg-amber-50 text-amber-600 border-amber-200/60'
                       iconSvg = (
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -851,7 +851,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     />
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
+                      className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
                     >
                       Choose Image
                     </button>
@@ -869,7 +869,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. John Doe"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -880,7 +880,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. john@doe.com"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
@@ -894,7 +894,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. +1 (555) 012-3456"
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -904,7 +904,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. 450"
                     value={walletAmt}
                     onChange={(e) => setWalletAmt(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
@@ -920,7 +920,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Emirates"
                       value={prefAirline}
                       onChange={(e) => setPrefAirline(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -928,7 +928,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     <select
                       value={prefSeat}
                       onChange={(e) => setPrefSeat(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     >
                       <option value="Window">Window</option>
                       <option value="Aisle">Aisle</option>
@@ -944,7 +944,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Suite / High Floor"
                       value={prefRoom}
                       onChange={(e) => setPrefRoom(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -952,7 +952,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     <select
                       value={prefDietary}
                       onChange={(e) => setPrefDietary(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     >
                       <option value="None">None</option>
                       <option value="Gluten-Free">Gluten-Free</option>
@@ -975,7 +975,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. US4829103"
                       value={passNo}
                       onChange={(e) => setPassNo(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -984,7 +984,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       type="date"
                       value={passExp}
                       onChange={(e) => setPassExp(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1001,7 +1001,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Japan"
                       value={visaCountry}
                       onChange={(e) => setVisaCountry(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1010,7 +1010,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       type="date"
                       value={visaExp}
                       onChange={(e) => setVisaExp(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1020,7 +1020,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. B1/B2"
                       value={visaClass}
                       onChange={(e) => setVisaClass(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1037,7 +1037,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Sarah Evans"
                       value={emergName}
                       onChange={(e) => setEmergName(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1047,7 +1047,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. +44 7946 000"
                       value={emergPhone}
                       onChange={(e) => setEmergPhone(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1057,7 +1057,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Spouse"
                       value={emergRelation}
                       onChange={(e) => setEmergRelation(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1071,7 +1071,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   placeholder="Insert any relevant context here (e.g. preferred departure hours, room upgrades requests, allergy alerts...)"
                   value={agentNotes}
                   onChange={(e) => setAgentNotes(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none"
                 ></textarea>
               </div>
 
@@ -1079,7 +1079,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -1128,7 +1128,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     />
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
+                      className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
                     >
                       Choose Image
                     </button>
@@ -1146,7 +1146,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. John Doe"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -1157,7 +1157,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. john@doe.com"
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
@@ -1171,7 +1171,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. +1 (555) 012-3456"
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -1181,7 +1181,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     placeholder="e.g. 450"
                     value={editWalletAmt}
                     onChange={(e) => setEditWalletAmt(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
@@ -1197,7 +1197,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Emirates"
                       value={editPrefAirline}
                       onChange={(e) => setEditPrefAirline(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1205,7 +1205,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     <select
                       value={editPrefSeat}
                       onChange={(e) => setEditPrefSeat(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     >
                       <option value="Window">Window</option>
                       <option value="Aisle">Aisle</option>
@@ -1221,7 +1221,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Suite / High Floor"
                       value={editPrefRoom}
                       onChange={(e) => setEditPrefRoom(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1229,7 +1229,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                     <select
                       value={editPrefDietary}
                       onChange={(e) => setEditPrefDietary(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     >
                       <option value="None">None</option>
                       <option value="Gluten-Free">Gluten-Free</option>
@@ -1252,7 +1252,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. US4829103"
                       value={editPassNo}
                       onChange={(e) => setEditPassNo(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1261,7 +1261,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       type="date"
                       value={editPassExp}
                       onChange={(e) => setEditPassExp(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1278,7 +1278,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Japan"
                       value={editVisaCountry}
                       onChange={(e) => setEditVisaCountry(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1287,7 +1287,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       type="date"
                       value={editVisaExp}
                       onChange={(e) => setEditVisaExp(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1297,7 +1297,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. B1/B2"
                       value={editVisaClass}
                       onChange={(e) => setEditVisaClass(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1314,7 +1314,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Sarah Evans"
                       value={editEmergName}
                       onChange={(e) => setEditEmergName(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1324,7 +1324,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. +44 7946 000"
                       value={editEmergPhone}
                       onChange={(e) => setEditEmergPhone(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                   <div>
@@ -1334,7 +1334,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                       placeholder="e.g. Spouse"
                       value={editEmergRelation}
                       onChange={(e) => setEditEmergRelation(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                     />
                   </div>
                 </div>
@@ -1348,7 +1348,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   placeholder="Insert any relevant context here (e.g. preferred departure hours, room upgrades requests, allergy alerts...)"
                   value={editAgentNotes}
                   onChange={(e) => setEditAgentNotes(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none"
                 ></textarea>
               </div>
 
@@ -1356,7 +1356,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 <button
                   type="button"
                   onClick={() => setShowEditForm(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -1393,7 +1393,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
               <button
                 type="button"
                 onClick={() => setClientToDelete(null)}
-                className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
               >
                 Cancel
               </button>
@@ -1434,7 +1434,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                   placeholder="Enter customer call notes, booking updates, visa status checks..."
                   value={logText}
                   onChange={(e) => setLogText(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none resize-none transition-all"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none transition-all"
                 ></textarea>
               </div>
               
@@ -1442,7 +1442,7 @@ export default function ClientsPage({ clients, setClients, bookings, addNotifica
                 <button
                   type="button"
                   onClick={() => setLogClient(null)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>

@@ -4,11 +4,13 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
   const [selectedPackage, setSelectedPackage] = useState(null)
   const [filterRegion, setFilterRegion] = useState('All')
   const [showAddPackageForm, setShowAddPackageForm] = useState(false)
+  const [bespokeMode, setBespokeMode] = useState(false)
 
   // New Package Form States
   const [pkgName, setPkgName] = useState('')
   const [pkgDays, setPkgDays] = useState('5')
   const [pkgPrice, setPkgPrice] = useState('3000')
+  const [pkgCostPrice, setPkgCostPrice] = useState('')
   const [pkgRegion, setPkgRegion] = useState('Asia')
   const [pkgSlots, setPkgSlots] = useState('15')
   const [pkgCardImage, setPkgCardImage] = useState('https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80')
@@ -20,12 +22,21 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     airportTransfer: true,
     flight: false
   })
+  const [pkgDescription, setPkgDescription] = useState('')
+  const [pkgHighlights, setPkgHighlights] = useState([])
+  const [pkgHighlightInput, setPkgHighlightInput] = useState('')
+  const [pkgInclusionsList, setPkgInclusionsList] = useState([])
+  const [pkgInclusionInput, setPkgInclusionInput] = useState('')
+  const [pkgExclusions, setPkgExclusions] = useState([])
+  const [pkgExclusionInput, setPkgExclusionInput] = useState('')
+ 
 
   // Edit Package Form States
   const [showEditPackageForm, setShowEditPackageForm] = useState(false)
   const [editPkgName, setEditPkgName] = useState('')
   const [editPkgDays, setEditPkgDays] = useState('5')
   const [editPkgPrice, setEditPkgPrice] = useState('3000')
+  const [editPkgCostPrice, setEditPkgCostPrice] = useState('')
   const [editPkgRegion, setEditPkgRegion] = useState('Asia')
   const [editPkgSlots, setEditPkgSlots] = useState('15')
   const [editPkgCardImage, setEditPkgCardImage] = useState('')
@@ -37,6 +48,14 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     airportTransfer: true,
     flight: false
   })
+  const [editPkgDescription, setEditPkgDescription] = useState('')
+  const [editPkgHighlights, setEditPkgHighlights] = useState([])
+  const [editPkgHighlightInput, setEditPkgHighlightInput] = useState('')
+  const [editPkgInclusionsList, setEditPkgInclusionsList] = useState([])
+  const [editPkgInclusionInput, setEditPkgInclusionInput] = useState('')
+  const [editPkgExclusions, setEditPkgExclusions] = useState([])
+  const [editPkgExclusionInput, setEditPkgExclusionInput] = useState('')
+  const [editPkgIsBespoke, setEditPkgIsBespoke] = useState(false)
   const [packageToDelete, setPackageToDelete] = useState(null)
 
   // Margin Calculator Tool State
@@ -73,7 +92,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     setCalcPackageId(packageId)
     const pkg = packages.find(p => p.id === packageId)
     if (pkg) {
-      setCalcCost(pkg.basePrice.toString())
+      setCalcCost((pkg.costPrice || pkg.basePrice).toString())
     }
   }
 
@@ -121,6 +140,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     setEditPkgName(pkg.name)
     setEditPkgDays((pkg.duration || '').replace(' Days', '').replace(' Day', ''))
     setEditPkgPrice(pkg.basePrice ? pkg.basePrice.toString() : '0')
+    setEditPkgCostPrice(pkg.costPrice ? pkg.costPrice.toString() : '')
     setEditPkgRegion(pkg.region || 'Asia')
     setEditPkgSlots(pkg.slots?.total ? pkg.slots.total.toString() : '10')
     setEditPkgCardImage(pkg.cardImage || '')
@@ -132,6 +152,14 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       airportTransfer: false,
       flight: false
     })
+    setEditPkgDescription(pkg.description || '')
+    setEditPkgHighlights(pkg.highlights || [])
+    setEditPkgHighlightInput('')
+    setEditPkgInclusionsList(pkg.inclusions || [])
+    setEditPkgInclusionInput('')
+    setEditPkgExclusions(pkg.exclusions || [])
+    setEditPkgExclusionInput('')
+    setEditPkgIsBespoke(pkg.isBespoke || false)
     setShowEditPackageForm(true)
   }
 
@@ -143,14 +171,21 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       ...selectedPackage,
       name: editPkgName,
       duration: `${editPkgDays} Days`,
-      basePrice: parseFloat(editPkgPrice) || 0,
+      basePrice: parseFloat((editPkgPrice || '').replace(/,/g, '')) || 0,
+      costPrice: editPkgCostPrice ? parseFloat((editPkgCostPrice || '').replace(/,/g, '')) : null,
       region: editPkgRegion,
-      slots: { ...selectedPackage.slots, total: parseInt(editPkgSlots) || 10 },
+      slots: editPkgIsBespoke ? { booked: 0, total: 999 } : { ...selectedPackage.slots, total: parseInt(editPkgSlots) || 10 },
       inclusionsSelection: editPkgInclusions,
       cardImage: editPkgCardImage,
-      heroImage: editPkgHeroImage
+      heroImage: editPkgHeroImage,
+      description: editPkgDescription,
+      highlights: editPkgHighlights,
+      inclusions: editPkgInclusionsList,
+      exclusions: editPkgExclusions,
+      isBespoke: editPkgIsBespoke
     }
 
+    console.log(`[DEBUG] handleSaveEditPackage: id=${updated.id}, newBasePrice=${updated.basePrice}, oldBasePrice=${selectedPackage.basePrice}, pkgName=${updated.name}`)
     setPackages(packages.map(p => p.id === selectedPackage.id ? updated : p))
     setSelectedPackage(updated)
     setShowEditPackageForm(false)
@@ -184,15 +219,21 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       id: `PKG-${crypto.randomUUID()}`,
       name: pkgName,
       duration: `${pkgDays} Days`,
-      basePrice: parseFloat(pkgPrice) || 0,
+      basePrice: parseFloat((pkgPrice || '').replace(/,/g, '')) || 0,
+      costPrice: pkgCostPrice ? parseFloat((pkgCostPrice || '').replace(/,/g, '')) : null,
       region: pkgRegion,
-      slots: { booked: 0, total: parseInt(pkgSlots) || 10 },
+      slots: bespokeMode ? { booked: 0, total: 999 } : { booked: 0, total: parseInt(pkgSlots) || 10 },
       trend: 'New',
       color: 'bg-stone-100 text-stone-800 border-stone-200',
       inclusionsSelection: pkgInclusions,
       heroImage: pkgHeroImage,
       cardImage: pkgCardImage,
-      itinerary: []
+      itinerary: [],
+      description: pkgDescription,
+      highlights: pkgHighlights,
+      inclusions: pkgInclusionsList,
+      exclusions: pkgExclusions,
+      isBespoke: bespokeMode
     }
 
     setPackages([newPkgObj, ...packages])
@@ -203,6 +244,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
     setPkgName('')
     setPkgDays('5')
     setPkgPrice('3000')
+    setPkgCostPrice('')
     setPkgRegion('Asia')
     setPkgSlots('15')
     setPkgCardImage('https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80')
@@ -214,6 +256,14 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       airportTransfer: true,
       flight: false
     })
+    setPkgDescription('')
+    setPkgHighlights([])
+    setPkgHighlightInput('')
+    setPkgInclusionsList([])
+    setPkgInclusionInput('')
+    setPkgExclusions([])
+    setPkgExclusionInput('')
+    setBespokeMode(false)
   }
 
   const handleAddItineraryDay = (e) => {
@@ -278,15 +328,26 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
           <h2 className="text-xl font-bold text-stone-900 tracking-tight">Luxury Travel Catalog</h2>
           <p className="text-xs text-stone-400">Review itineraries, check booking slots, and calculate commissions splits in real time.</p>
         </div>
-        <button
-          onClick={() => setShowAddPackageForm(true)}
-          className="py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center gap-2 cursor-pointer"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Add Vacation Package
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setBespokeMode(false); setShowAddPackageForm(true) }}
+            className="py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center gap-2 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Package
+          </button>
+          <button
+            onClick={() => { setBespokeMode(true); setShowAddPackageForm(true) }}
+            className="py-2.5 px-4 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center gap-2 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Add Bespoke
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -329,7 +390,12 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                         {pkg.region}
                       </span>
                       <div className="flex items-center gap-1.5 text-stone-400 bg-stone-50 px-2 py-1 rounded border border-stone-100/60">
-                        <span className="text-xs font-bold text-stone-850 mr-0.5">₹{pkg.basePrice.toLocaleString('en-IN')}</span>
+                        <span className="text-xs font-bold text-stone-800 mr-0.5">₹{pkg.basePrice.toLocaleString('en-IN')}</span>
+                        {pkg.costPrice > 0 && (
+                          <span className="text-[9px] text-emerald-600 font-bold ml-0.5">
+                            +{Math.round((pkg.basePrice - pkg.costPrice) / pkg.costPrice * 100)}%
+                          </span>
+                        )}
                         {pkg.inclusionsSelection?.hotel && (
                           <svg className="w-3.5 h-3.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" title="Hotel Included">
                             <path d="M3 21V9a2 2 0 012-2h14a2 2 0 012 2v12M10 21v-4a2 2 0 014 0v4" />
@@ -377,8 +443,8 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border ${
                         isLowAllotment
-                          ? 'bg-rose-50 text-rose-700 border-rose-250 animate-pulse'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-250'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       }`}>
                         {isLowAllotment ? `${spotsLeft} Slots Left!` : 'Available'}
                       </span>
@@ -410,7 +476,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                           alert(`Drafted Quote for ${clientName}:\nPackage: ${pkg.name}\nRetail Cost: ₹${pkg.basePrice.toLocaleString('en-IN')}`);
                         }
                       }}
-                      className="flex-1 py-1.5 bg-white hover:bg-stone-50 border border-stone-250/70 text-stone-700 rounded-lg text-[10px] font-bold shadow-sm active:scale-[0.98] transition-all cursor-pointer text-center"
+                      className="flex-1 py-1.5 bg-white hover:bg-stone-50 border border-stone-200/70 text-stone-700 rounded-lg text-[10px] font-bold shadow-sm active:scale-[0.98] transition-all cursor-pointer text-center"
                     >
                       Quick Quote
                     </button>
@@ -436,7 +502,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   placeholder="e.g. Sophia Loren"
                   value={calcClient}
                   onChange={(e) => setCalcClient(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 />
               </div>
               <div>
@@ -444,7 +510,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 <select
                   value={calcPackageId}
                   onChange={(e) => handlePackageSelectChange(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 >
                   <option value="">-- Choose Package --</option>
                   {packages.map(p => (
@@ -461,7 +527,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   type="number"
                   value={calcCost}
                   onChange={(e) => setCalcCost(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 />
               </div>
               <div>
@@ -471,7 +537,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     type="number"
                     value={calcMarkup}
                     onChange={(e) => setCalcMarkup(e.target.value)}
-                    className="w-16 bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                    className="w-16 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                   />
                   <input
                     type="range"
@@ -489,32 +555,52 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   type="number"
                   value={calcSplit}
                   onChange={(e) => setCalcSplit(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
-              <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
-                <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Retail Price</span>
-                <span className="text-sm font-extrabold text-stone-900">₹{retailPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-              </div>
-              <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
-                <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Total Margin</span>
-                <div className="flex flex-col items-center">
-                  <span className="text-sm font-extrabold text-amber-700">₹{totalMargin.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  <span className="text-[9px] text-stone-500 font-bold mt-0.5">{marginPercent.toFixed(1)}% of retail</span>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
+                <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
+                  <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Retail Price</span>
+                  <span className="text-sm font-extrabold text-stone-900">₹{retailPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+                <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
+                  <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Total Margin</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm font-extrabold text-amber-700">₹{totalMargin.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="text-[9px] text-stone-500 font-bold mt-0.5">{marginPercent.toFixed(1)}% of retail</span>
+                  </div>
+                </div>
+                <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
+                  <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Agent Yield</span>
+                  <span className="text-sm font-extrabold text-stone-800">₹{agentCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+                <div className="bg-amber-600/5 p-3 rounded-xl border border-amber-600/10">
+                  <span className="text-[9px] font-bold text-amber-700 block uppercase mb-1">Agency Net</span>
+                  <span className="text-sm font-extrabold text-amber-800">₹{agencyRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
               </div>
-              <div className="bg-[#FAF9F5] p-3 rounded-xl border border-stone-200/40">
-                <span className="text-[9px] font-bold text-stone-400 block uppercase mb-1">Agent Yield</span>
-                <span className="text-sm font-extrabold text-stone-800">₹{agentCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-              </div>
-              <div className="bg-amber-600/5 p-3 rounded-xl border border-amber-600/10">
-                <span className="text-[9px] font-bold text-amber-750 block uppercase mb-1">Agency Net</span>
-                <span className="text-sm font-extrabold text-amber-805">₹{agencyRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-              </div>
-            </div>
+              {calcPackageId && (
+                <div className="border-t border-stone-100 pt-3 flex justify-end">
+                  <button
+                    onClick={() => {
+                      const pkg = packages.find(p => p.id === calcPackageId)
+                      if (pkg) {
+                        setPackages(packages.map(p => p.id === calcPackageId ? {
+                          ...p,
+                          costPrice: parseFloat(calcCost) || 0,
+                          basePrice: parseFloat(retailPrice.toFixed(2)) || p.basePrice
+                        } : p))
+                        if (addNotification) addNotification(`Cost & retail saved to ${pkg.name}`, 'success')
+                      }
+                    }}
+                    className="py-2 px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded-lg transition-all cursor-pointer"
+                  >
+                    Save Cost & Retail to Package
+                  </button>
+                </div>
+              )}
           </div>
         </div>
 
@@ -525,9 +611,12 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-sm font-bold text-stone-900 tracking-tight">{selectedPackage.name}</h3>
-                  <div className="flex justify-between items-center mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-stone-400 font-semibold">{selectedPackage.duration} Plan</span>
-                    <span className="text-[10px] text-stone-500 font-bold ml-2">{selectedPackage.id}</span>
+                    {selectedPackage.isBespoke && (
+                      <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200/60">Bespoke</span>
+                    )}
+                    <span className="text-[10px] text-stone-500 font-bold ml-auto">{selectedPackage.id}</span>
                   </div>
                 </div>
                 <button
@@ -543,7 +632,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
 
               {/* Manage Inclusions */}
               <div className="border-t border-stone-100 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Inclusions Selection</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Inclusions Selection</h4>
                 <div className="grid grid-cols-2 gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200/60">
                   <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-700 cursor-pointer">
                     <input
@@ -643,9 +732,56 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 </div>
               </div>
 
+              {/* Overview / Description */}
+              {selectedPackage.description && (
+                <div className="border-t border-stone-100 pt-4 space-y-1">
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Overview</h4>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">{selectedPackage.description}</p>
+                </div>
+              )}
+
+              {/* Trip Highlights */}
+              {selectedPackage.highlights && selectedPackage.highlights.length > 0 && (
+                <div className="border-t border-stone-100 pt-4 space-y-1">
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Trip Highlights</h4>
+                  <ul className="space-y-0.5">
+                    {selectedPackage.highlights.map((h, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[11px] text-stone-600">
+                        <span className="text-amber-600 mt-0.5 shrink-0">&#9679;</span>
+                        {h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Inclusions List */}
+              {selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
+                <div className="border-t border-stone-100 pt-4 space-y-1">
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Inclusions</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedPackage.inclusions.map((item, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-700 font-medium">{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Exclusions */}
+              {selectedPackage.exclusions && selectedPackage.exclusions.length > 0 && (
+                <div className="border-t border-stone-100 pt-4 space-y-1">
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Exclusions</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedPackage.exclusions.map((item, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-[10px] text-rose-700 font-medium">{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Slots Booked Adjustment */}
               <div className="border-t border-stone-100 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Booking Slots</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Booking Slots</h4>
                 <div className="flex items-center justify-between bg-stone-50 p-3 rounded-xl border border-stone-200/60">
                   <div className="text-[11px] text-stone-600 font-semibold">
                     <span className="text-stone-900 font-bold">{selectedPackage.slots?.booked ?? 0}</span> / {selectedPackage.slots?.total ?? 10} booked
@@ -686,7 +822,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
               </div>
               {/* Best Month & CTA Badge */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
-                <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Seasonal Promotion</h4>
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Seasonal Promotion</h4>
                 <div className="space-y-2">
                   <div>
                     <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-1">Best Month to Visit</label>
@@ -750,7 +886,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                         D{item.day}
                       </span>
                       <div className="space-y-0.5 flex-1 pr-6">
-                        <h4 className="font-bold text-stone-850">{item.title}</h4>
+                        <h4 className="font-bold text-stone-800">{item.title}</h4>
                         <p className="text-[11px] text-stone-500 leading-relaxed">{item.desc}</p>
                       </div>
                       {/* Hover delete day button */}
@@ -773,7 +909,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
               {/* Form to Add Day */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-stone-850 uppercase tracking-wider">Add Day Itinerary Event</h4>
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Add Day Itinerary Event</h4>
                   <span className="text-[10px] text-stone-500 font-bold bg-stone-100 px-1.5 py-0.5 rounded">
                     Limit: {selectedPackage.itinerary.length}/{parseInt(selectedPackage.duration)}
                   </span>
@@ -796,7 +932,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                         placeholder="e.g. 4"
                         value={newDayNum}
                         onChange={(e) => setNewDayNum(e.target.value)}
-                        className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                        className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                       />
                     </div>
                     <div className="col-span-2">
@@ -807,7 +943,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                         placeholder="e.g. Free Time & Shopping"
                         value={newDayTitle}
                         onChange={(e) => setNewDayTitle(e.target.value)}
-                        className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                        className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                       />
                     </div>
                   </div>
@@ -819,7 +955,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                       placeholder="Details on hotels, restaurants, excursions, ground transport schedules..."
                       value={newDayDesc}
                       onChange={(e) => setNewDayDesc(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none resize-none"
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none resize-none"
                     ></textarea>
                   </div>
 
@@ -862,11 +998,11 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       {/* Add Package Modal */}
       {showAddPackageForm && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-            <div className="flex justify-between items-center pb-4 border-b border-stone-100">
-              <h3 className="text-base font-bold text-stone-900">Add New Vacation Package</h3>
+          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 pb-4 border-b border-stone-100 shrink-0">
+              <h3 className="text-base font-bold text-stone-900">{bespokeMode ? 'Add Bespoke Package' : 'Add Vacation Package'}</h3>
               <button 
-                onClick={() => setShowAddPackageForm(false)}
+                onClick={() => { setShowAddPackageForm(false); setBespokeMode(false) }}
                 className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 cursor-pointer"
               >
                 <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -874,8 +1010,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 </svg>
               </button>
             </div>
-            
-            <form onSubmit={handleAddPackage} className="space-y-4 pt-4">
+            <form onSubmit={handleAddPackage} className="space-y-4 px-6 pb-6 overflow-y-auto">
               {/* Package Image Upload */}
               <div className="p-3 bg-stone-50/50 border border-stone-200 rounded-xl">
                 <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Package Image (Cover & Hero)</label>
@@ -892,7 +1027,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     />
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-650 transition-all cursor-pointer"
+                      className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
                     >
                       Choose Image
                     </button>
@@ -909,11 +1044,11 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   placeholder="e.g. Tuscan Gastronomy Experience"
                   value={pkgName}
                   onChange={(e) => setPkgName(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Duration (Days)</label>
                   <input
@@ -924,7 +1059,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     placeholder="e.g. 5"
                     value={pkgDays}
                     onChange={(e) => setPkgDays(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -936,18 +1071,29 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     placeholder="e.g. 3500"
                     value={pkgPrice}
                     onChange={(e) => setPkgPrice(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Cost Price (INR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 2500"
+                    value={pkgCostPrice}
+                    onChange={(e) => setPkgCostPrice(e.target.value)}
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${bespokeMode ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Destination Region</label>
                   <select
                     value={pkgRegion}
                     onChange={(e) => setPkgRegion(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   >
                     <option value="Asia">Asia</option>
                     <option value="Europe">Europe</option>
@@ -955,18 +1101,20 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     <option value="Africa">Africa</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Total Allotment Slots</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 20"
-                    value={pkgSlots}
-                    onChange={(e) => setPkgSlots(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
-                  />
-                </div>
+                {!bespokeMode && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Total Allotment Slots</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="e.g. 20"
+                      value={pkgSlots}
+                      onChange={(e) => setPkgSlots(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1020,11 +1168,125 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 </div>
               </div>
 
+              {/* Description */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Overview / Description</label>
+                <textarea
+                  rows="3"
+                  value={pkgDescription}
+                  onChange={(e) => setPkgDescription(e.target.value)}
+                  placeholder="Describe the travel package experience..."
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none"
+                />
+              </div>
+
+              {/* Highlights */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Trip Highlights</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={pkgHighlightInput}
+                    onChange={(e) => setPkgHighlightInput(e.target.value)}
+                    placeholder="e.g. Visit ancient temples"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pkgHighlightInput.trim()) {
+                        setPkgHighlights([...pkgHighlights, pkgHighlightInput.trim()])
+                        setPkgHighlightInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {pkgHighlights.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pkgHighlights.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-stone-100 border border-stone-200 rounded text-[10px] text-stone-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setPkgHighlights(pkgHighlights.filter((_, idx) => idx !== i))} className="text-stone-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Inclusions List */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Inclusions (detailed list)</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={pkgInclusionInput}
+                    onChange={(e) => setPkgInclusionInput(e.target.value)}
+                    placeholder="e.g. 5-star hotel accommodation"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pkgInclusionInput.trim()) {
+                        setPkgInclusionsList([...pkgInclusionsList, pkgInclusionInput.trim()])
+                        setPkgInclusionInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {pkgInclusionsList.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pkgInclusionsList.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setPkgInclusionsList(pkgInclusionsList.filter((_, idx) => idx !== i))} className="text-emerald-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Exclusions */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Exclusions</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={pkgExclusionInput}
+                    onChange={(e) => setPkgExclusionInput(e.target.value)}
+                    placeholder="e.g. International flights"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pkgExclusionInput.trim()) {
+                        setPkgExclusions([...pkgExclusions, pkgExclusionInput.trim()])
+                        setPkgExclusionInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {pkgExclusions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pkgExclusions.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-[10px] text-rose-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setPkgExclusions(pkgExclusions.filter((_, idx) => idx !== i))} className="text-rose-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-stone-100 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddPackageForm(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
+                  onClick={() => { setShowAddPackageForm(false); setBespokeMode(false) }}
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1032,7 +1294,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   type="submit"
                   className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow active:scale-95 transition-all cursor-pointer"
                 >
-                  Create Package
+                  {bespokeMode ? 'Create Bespoke Package' : 'Create Package'}
                 </button>
               </div>
             </form>
@@ -1043,8 +1305,8 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
       {/* Edit Package Modal */}
       {showEditPackageForm && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-            <div className="flex justify-between items-center pb-4 border-b border-stone-100">
+          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 pb-4 border-b border-stone-100 shrink-0">
               <h3 className="text-base font-bold text-stone-900">Edit Vacation Package</h3>
               <button 
                 onClick={() => setShowEditPackageForm(false)}
@@ -1056,7 +1318,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
               </button>
             </div>
             
-            <form onSubmit={handleSaveEditPackage} className="space-y-4 pt-4">
+            <form onSubmit={handleSaveEditPackage} className="space-y-4 px-6 pb-6 overflow-y-auto">
               {/* Package Image Upload */}
               <div className="p-3 bg-stone-50/50 border border-stone-200 rounded-xl">
                 <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Package Image (Cover & Hero)</label>
@@ -1073,7 +1335,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     />
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-stone-250 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-655 transition-all cursor-pointer"
+                      className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
                     >
                       Choose Image
                     </button>
@@ -1090,11 +1352,11 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                   placeholder="e.g. Tuscan Gastronomy Experience"
                   value={editPkgName}
                   onChange={(e) => setEditPkgName(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Duration (Days)</label>
                   <input
@@ -1105,7 +1367,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     placeholder="e.g. 5"
                     value={editPkgDays}
                     onChange={(e) => setEditPkgDays(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
                 <div>
@@ -1117,18 +1379,29 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                     placeholder="e.g. 35000"
                     value={editPkgPrice}
                     onChange={(e) => setEditPkgPrice(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Cost Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 25000"
+                    value={editPkgCostPrice}
+                    onChange={(e) => setEditPkgCostPrice(e.target.value)}
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Destination Region</label>
                   <select
                     value={editPkgRegion}
                     onChange={(e) => setEditPkgRegion(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
                   >
                     <option value="Asia">Asia</option>
                     <option value="Europe">Europe</option>
@@ -1138,15 +1411,38 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Total Allotment Slots</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 20"
-                    value={editPkgSlots}
-                    onChange={(e) => setEditPkgSlots(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none"
-                  />
+                  {editPkgIsBespoke ? (
+                    <div className="h-[38px] flex items-center px-3 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-400 font-medium">Unlimited</div>
+                  ) : (
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="e.g. 20"
+                      value={editPkgSlots}
+                      onChange={(e) => setEditPkgSlots(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Package Type</label>
+                  <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setEditPkgIsBespoke(false)}
+                      className={`flex-1 text-xs font-bold py-2 transition-all ${!editPkgIsBespoke ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
+                    >
+                      Standard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditPkgIsBespoke(true)}
+                      className={`flex-1 text-xs font-bold py-2 transition-all ${editPkgIsBespoke ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
+                    >
+                      Bespoke
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1201,11 +1497,125 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
                 </div>
               </div>
 
+              {/* Description */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Overview / Description</label>
+                <textarea
+                  rows="3"
+                  value={editPkgDescription}
+                  onChange={(e) => setEditPkgDescription(e.target.value)}
+                  placeholder="Describe the travel package experience..."
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none"
+                />
+              </div>
+
+              {/* Highlights */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Trip Highlights</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={editPkgHighlightInput}
+                    onChange={(e) => setEditPkgHighlightInput(e.target.value)}
+                    placeholder="e.g. Visit ancient temples"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editPkgHighlightInput.trim()) {
+                        setEditPkgHighlights([...editPkgHighlights, editPkgHighlightInput.trim()])
+                        setEditPkgHighlightInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {editPkgHighlights.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {editPkgHighlights.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-stone-100 border border-stone-200 rounded text-[10px] text-stone-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setEditPkgHighlights(editPkgHighlights.filter((_, idx) => idx !== i))} className="text-stone-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Inclusions List */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Inclusions (detailed list)</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={editPkgInclusionInput}
+                    onChange={(e) => setEditPkgInclusionInput(e.target.value)}
+                    placeholder="e.g. 5-star hotel accommodation"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editPkgInclusionInput.trim()) {
+                        setEditPkgInclusionsList([...editPkgInclusionsList, editPkgInclusionInput.trim()])
+                        setEditPkgInclusionInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {editPkgInclusionsList.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {editPkgInclusionsList.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setEditPkgInclusionsList(editPkgInclusionsList.filter((_, idx) => idx !== i))} className="text-emerald-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Exclusions */}
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Exclusions</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={editPkgExclusionInput}
+                    onChange={(e) => setEditPkgExclusionInput(e.target.value)}
+                    placeholder="e.g. International flights"
+                    className="flex-1 bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editPkgExclusionInput.trim()) {
+                        setEditPkgExclusions([...editPkgExclusions, editPkgExclusionInput.trim()])
+                        setEditPkgExclusionInput('')
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                  >Add</button>
+                </div>
+                {editPkgExclusions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {editPkgExclusions.map((item, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-[10px] text-rose-700 font-medium">
+                        {item}
+                        <button type="button" onClick={() => setEditPkgExclusions(editPkgExclusions.filter((_, idx) => idx !== i))} className="text-rose-400 hover:text-rose-600 cursor-pointer">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-stone-100 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditPackageForm(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1232,7 +1642,7 @@ export default function PackagesPage({ packages, setPackages, clients, bookings,
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setPackageToDelete(null)}
-                className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
+                className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer"
               >
                 Cancel
               </button>

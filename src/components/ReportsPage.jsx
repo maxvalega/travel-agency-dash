@@ -12,7 +12,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
     }
     const entry = agentMap.get(name)
     entry.bookings += 1
-    entry.volume += parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0)
+    entry.volume += Number(b.amount) || 0
   })
 
   const agents = Array.from(agentMap.values())
@@ -32,16 +32,18 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
   const destinationMetrics = packages.map(pkg => {
     const pkgBookings = bookings.filter(b => b.package.toLowerCase() === pkg.name.toLowerCase())
     const totalBookings = pkgBookings.length
-    const volume = pkgBookings.reduce((sum, b) => sum + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
-    const baseCost = pkg.basePrice
-    const marginPerTour = baseCost * (markupPercent / 100)
+    const volume = pkgBookings.reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+    const costPrice = pkg.costPrice || 0
+    const retailPrice = pkg.basePrice || 0
+    const marginPerTour = costPrice > 0 ? retailPrice - costPrice : retailPrice * (markupPercent / (100 + markupPercent))
+    const actualMarginPct = retailPrice > 0 ? (marginPerTour / retailPrice) * 100 : 0
     const netProfit = marginPerTour * (1 - (splitPercent / 100)) * totalBookings
     
     return {
       destination: `${pkg.name} (${pkg.region})`,
       totalBookings,
       volume: `₹${volume.toLocaleString('en-IN')}`,
-      avgMargin: `${markupPercent}%`,
+      avgMargin: `${actualMarginPct.toFixed(1)}%`,
       netProfit: `₹${netProfit.toLocaleString('en-IN', {maximumFractionDigits: 0})}`
     }
   })
@@ -60,7 +62,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
         return bDate >= p.start && bDate <= p.end
       })
       
-      const totalInflow = periodBookings.reduce((sum, b) => sum + parseFloat(b.amount.replace(/[^0-9.-]+/g, "") || 0), 0)
+      const totalInflow = periodBookings.reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
       const totalOutflow = totalInflow * (100 / (100 + markupPercent))
       const netFloat = totalInflow - totalOutflow
       
@@ -120,7 +122,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
                       <td className="py-3 px-6 text-center font-bold text-stone-500">#{agent.rank}</td>
                       <td className="py-3 px-6 font-semibold text-stone-900">{agent.name}</td>
                       <td className="py-3 px-6 text-center font-medium text-stone-700">{agent.bookings}</td>
-                      <td className="py-3 px-6 font-bold text-stone-850">{agent.volume}</td>
+                      <td className="py-3 px-6 font-bold text-stone-800">{agent.volume}</td>
                       <td className="py-3 px-6 text-emerald-700 font-bold">{agent.commission}</td>
                     </tr>
                   ))}
@@ -154,7 +156,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
                       <td className="py-3 px-6 text-center font-semibold text-stone-600">{dm.totalBookings}</td>
                       <td className="py-3 px-6 font-bold text-stone-800">{dm.volume}</td>
                       <td className="py-3 px-6 text-center text-stone-500 font-mono">{dm.avgMargin}</td>
-                      <td className="py-3 px-6 font-extrabold text-amber-750">{dm.netProfit}</td>
+                      <td className="py-3 px-6 font-extrabold text-amber-700">{dm.netProfit}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -176,7 +178,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
               {cashFlowTimeline.map((item, idx) => (
                 <div key={idx} className="p-3.5 bg-[#FAF9F5]/50 border border-stone-200/40 rounded-xl space-y-2">
                   <div className="flex justify-between items-center pb-2 border-b border-stone-100">
-                    <span className="text-xs font-bold text-stone-850">{item.period}</span>
+                    <span className="text-xs font-bold text-stone-800">{item.period}</span>
                     <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">
                       {item.status}
                     </span>
@@ -185,7 +187,7 @@ export default function ReportsPage({ bookings = [], packages = [], clients = []
                   <div className="grid grid-cols-3 gap-1 text-[11px]">
                     <div>
                       <span className="text-[9px] text-stone-400 font-bold uppercase block">Inflow</span>
-                      <span className="font-semibold text-stone-750">{item.incomingPayments}</span>
+                      <span className="font-semibold text-stone-700">{item.incomingPayments}</span>
                     </div>
                     <div>
                       <span className="text-[9px] text-stone-400 font-bold uppercase block">Outflow</span>

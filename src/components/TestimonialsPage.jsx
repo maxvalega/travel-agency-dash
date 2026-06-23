@@ -1,0 +1,293 @@
+import { useState, useRef } from 'react'
+
+const DEFAULT_AVATAR = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e4d5c5" rx="50"/><circle cx="50" cy="38" r="18" fill="#d4c4b5"/><path d="M20 80c0-18 13-32 30-32s30 14 30 32" fill="#d4c4b5"/></svg>'
+)
+
+const MAX_TEXT_LENGTH = 500
+const defaultForm = { name: '', location: '', avatar: '', rating: 5, text: '', package: '' }
+
+export default function TestimonialsPage({ testimonials, setTestimonials, addNotification, packages }) {
+  const standardPackages = (packages || []).filter(p => !p.isBespoke)
+  const bespokePackages = (packages || []).filter(p => p.isBespoke)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(defaultForm)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const fileInputRef = useRef(null)
+
+  const openAdd = () => {
+    setForm(defaultForm)
+    setEditing(null)
+    setShowForm(true)
+  }
+
+  const openEdit = (t) => {
+    setForm({
+      name: t.name || '',
+      location: t.location || '',
+      avatar: t.avatar || '',
+      rating: t.rating || 5,
+      text: t.text || '',
+      package: t.package || ''
+    })
+    setEditing(t)
+    setShowForm(true)
+  }
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      if (addNotification) addNotification('Uploading avatar...', 'info')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error || 'Failed to upload image')
+      }
+
+      const data = await response.json()
+      setForm({ ...form, avatar: data.imageUrl })
+      if (addNotification) addNotification('Avatar uploaded successfully!', 'success')
+    } catch (err) {
+      console.error(err)
+      if (addNotification) addNotification(err.message || 'Avatar upload failed', 'error')
+    }
+  }
+
+  const removeAvatar = () => {
+    setForm({ ...form, avatar: '' })
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleSave = (e) => {
+    e.preventDefault()
+    if (!form.name.trim()) return
+
+    if (editing) {
+      setTestimonials(testimonials.map(t => t.id === editing.id ? { ...t, ...form } : t))
+      if (addNotification) addNotification(`Testimonial from ${form.name} updated`, 'success')
+    } else {
+      const newT = { id: crypto.randomUUID(), ...form }
+      setTestimonials([newT, ...testimonials])
+      if (addNotification) addNotification(`Testimonial from ${form.name} created`, 'success')
+    }
+    setShowForm(false)
+    setForm(defaultForm)
+    setEditing(null)
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    setTestimonials(testimonials.filter(t => t.id !== deleteTarget.id))
+    if (addNotification) addNotification(`Testimonial from ${deleteTarget.name} deleted`, 'info')
+    setDeleteTarget(null)
+  }
+
+  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-stone-900 tracking-tight">Customer Testimonials</h2>
+          <p className="text-xs text-stone-400">Manage traveler reviews shown on the customer site.</p>
+        </div>
+        <button
+          onClick={openAdd}
+          className="py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center gap-2 cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Add Testimonial
+        </button>
+      </div>
+
+      {/* Testimonials Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {testimonials.length === 0 && (
+          <div className="md:col-span-2 xl:col-span-3 py-16 text-center text-stone-400 text-sm">
+            No testimonials yet. Add your first customer review.
+          </div>
+        )}
+        {testimonials.map(t => (
+          <div key={t.id} className="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-stone-100 shrink-0 border border-stone-200">
+                <img
+                  src={t.avatar || DEFAULT_AVATAR}
+                  alt={t.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-stone-900 truncate">{t.name}</h4>
+                {t.location && <span className="text-[10px] text-stone-400">{t.location}</span>}
+              </div>
+            </div>
+            <div className="text-amber-500 text-xs tracking-wider">{stars(Math.min(Math.max(t.rating || 5, 1), 5))}</div>
+            {t.text && <p className="text-xs text-stone-600 leading-relaxed line-clamp-3">{t.text}</p>}
+            {t.package && <span className="inline-block px-2 py-0.5 bg-stone-100 rounded text-[9px] text-stone-500 font-semibold">{t.package}</span>}
+            <div className="flex gap-2 pt-2 border-t border-stone-100">
+              <button onClick={() => openEdit(t)} className="flex-1 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-[10px] font-bold text-stone-700 cursor-pointer transition-all">Edit</button>
+              <button onClick={() => setDeleteTarget(t)} className="flex-1 py-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg text-[10px] font-bold text-rose-600 cursor-pointer transition-all">Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add / Edit Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-lg p-6 animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center pb-4 border-b border-stone-100">
+              <h3 className="text-base font-bold text-stone-900">{editing ? 'Edit Testimonial' : 'Add Testimonial'}</h3>
+              <button onClick={() => { setShowForm(false); setEditing(null) }} className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 cursor-pointer">
+                <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-4 pt-4">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 p-3 bg-stone-50/50 border border-stone-200 rounded-xl">
+                <div className="w-12 h-12 rounded-xl bg-stone-100 p-0.5 shadow-inner shrink-0 relative group overflow-hidden">
+                  <img
+                    src={form.avatar || DEFAULT_AVATAR}
+                    alt="Avatar Preview"
+                    className="w-full h-full object-cover rounded-[10px]"
+                  />
+                  {form.avatar && (
+                    <button
+                      type="button"
+                      onClick={removeAvatar}
+                      className="absolute top-0.5 right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <div className="flex-grow">
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Avatar Photo</label>
+                  <div className="relative">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-semibold text-stone-600 transition-all cursor-pointer"
+                    >
+                      Choose Image
+                    </button>
+                    <span className="text-[9px] text-stone-400 ml-2">Max 5MB</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Name <span className="text-rose-500">*</span></label>
+                  <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Sarah Johnson" className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Location</label>
+                  <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="e.g. New York, USA" className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Rating</label>
+                  <div className="flex gap-0.5 mt-1">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setForm({ ...form, rating: n })}
+                        className={`text-lg transition-all cursor-pointer ${n <= form.rating ? 'text-amber-500' : 'text-stone-300 hover:text-amber-400'}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Package</label>
+                  <select
+                    value={form.package}
+                    onChange={(e) => setForm({ ...form, package: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none"
+                  >
+                    <option value="">— Select Package —</option>
+                    {standardPackages.length > 0 && (
+                      <optgroup label="Standard Packages">
+                        {standardPackages.map(p => (
+                          <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {bespokePackages.length > 0 && (
+                      <optgroup label="Bespoke Packages">
+                        {bespokePackages.map(p => (
+                          <option key={p.id} value={p.name}>{p.name} (Bespoke)</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">
+                  Review Text
+                  <span className="font-normal text-stone-400 ml-1">({form.text.length}/{MAX_TEXT_LENGTH})</span>
+                </label>
+                <textarea
+                  rows="3"
+                  maxLength={MAX_TEXT_LENGTH}
+                  value={form.text}
+                  onChange={(e) => setForm({ ...form, text: e.target.value })}
+                  placeholder="Share the traveler's experience..."
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none resize-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-stone-100 flex justify-end gap-2">
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow active:scale-95 transition-all cursor-pointer">{editing ? 'Save Changes' : 'Add Testimonial'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in duration-200 space-y-4">
+            <h3 className="text-base font-bold text-stone-900">Delete Testimonial?</h3>
+            <p className="text-xs text-stone-500 leading-relaxed">Are you sure you want to delete the testimonial from <strong className="text-stone-800">{deleteTarget.name}</strong>? This cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all cursor-pointer">Cancel</button>
+              <button onClick={confirmDelete} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow active:scale-95 transition-all cursor-pointer">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

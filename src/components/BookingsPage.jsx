@@ -24,6 +24,7 @@ export default function BookingsPage({
   const [editPackage, setEditPackage] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [editDate, setEditDate] = useState('')
+  const [editGuests, setEditGuests] = useState('1')
   const [editStatus, setEditStatus] = useState('Pending')
 
   // Form States
@@ -31,6 +32,7 @@ export default function BookingsPage({
   const [newPackage, setNewPackage] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [newDate, setNewDate] = useState('')
+  const [newGuests, setNewGuests] = useState('1')
   const [newStatus, setNewStatus] = useState('Pending')
 
   // Utility Date Formatters
@@ -71,29 +73,43 @@ export default function BookingsPage({
     if (!editBookingObj || !editClient || !editPackage || !editAmount || !editDate) return
 
     // Slot validation guard (read-only check; backend is the source of truth)
-    if (editBookingObj.package !== editPackage) {
+    const newGuestCount = parseInt(editGuests) || 1
+    if (editBookingObj.package !== editPackage || newGuestCount !== (editBookingObj.guests || 1)) {
       const targetPkg = packages.find(p => p.name === editPackage)
       if (targetPkg) {
         const slotsLeft = targetPkg.slots.total - targetPkg.slots.booked
-        if (slotsLeft <= 0) {
-          if (addNotification) {
-            addNotification(`Error: No available booking slots remaining for ${editPackage}.`, 'warning')
+        if (editBookingObj.package !== editPackage) {
+          // Full re-check for new package
+          if (slotsLeft < newGuestCount) {
+            if (addNotification) {
+              addNotification(`Error: Not enough slots for ${newGuestCount} guests in ${editPackage}. Only ${slotsLeft} left.`, 'warning')
+            }
+            return
           }
-          return
+        } else {
+          // Same package, guests changed — check delta
+          const oldGuests = editBookingObj.guests || 1
+          const delta = newGuestCount - oldGuests
+          if (delta > 0 && slotsLeft < delta) {
+            if (addNotification) {
+              addNotification(`Error: Cannot add ${delta} more guests. Only ${slotsLeft} slots left.`, 'warning')
+            }
+            return
+          }
         }
       }
     }
 
-    const formattedAmount = editAmount.startsWith('₹') ? editAmount : `₹${parseFloat(editAmount).toLocaleString('en-IN')}`
     const formattedDate = formatDate(editDate)
 
     const updatedBooking = {
       ...editBookingObj,
       client: editClient,
       package: editPackage,
-      amount: formattedAmount,
+      amount: parseFloat(editAmount) || 0,
       date: formattedDate,
-      status: editStatus
+      status: editStatus,
+      guests: parseInt(editGuests) || 1
     }
 
     setBookings(bookings.map(b => b.id === editBookingObj.id ? updatedBooking : b))
@@ -157,30 +173,32 @@ export default function BookingsPage({
     e.preventDefault()
     if (!newClient || !newPackage || !newAmount || !newDate) return
     
-    // Check package availability
+    // Check package availability (per-guest slot consumption)
     const targetPkg = packages.find(p => p.name === newPackage)
     if (targetPkg) {
+      const guestCount = parseInt(newGuests) || 1
       const slotsLeft = targetPkg.slots.total - targetPkg.slots.booked
-      if (slotsLeft <= 0) {
+      if (slotsLeft < guestCount) {
         if (addNotification) {
-          addNotification(`Error: No available booking slots remaining for ${newPackage}.`, 'warning')
+          addNotification(`Error: Not enough slots for ${guestCount} guests in ${newPackage}. Only ${slotsLeft} left.`, 'warning')
         } else {
-          alert(`Error: No available booking slots remaining for ${newPackage}.`)
+          alert(`Error: Not enough slots for ${guestCount} guests in ${newPackage}. Only ${slotsLeft} left.`)
         }
         return
       }
     }
     
     const newId = `BK-${crypto.randomUUID()}`
-    const formattedAmount = newAmount.startsWith('₹') ? newAmount : `₹${parseFloat(newAmount).toLocaleString('en-IN')}`
+    const guestCount = parseInt(newGuests) || 1
 
     const newBookingObj = {
       id: newId,
       client: newClient,
       package: newPackage,
-      amount: formattedAmount,
+      amount: parseFloat(newAmount) || 0,
       date: formatDate(newDate),
-      status: newStatus
+      status: newStatus,
+      guests: guestCount
     }
 
     setBookings([newBookingObj, ...bookings])
@@ -214,6 +232,7 @@ export default function BookingsPage({
     setNewPackage('')
     setNewAmount('')
     setNewDate('')
+    setNewGuests('1')
     setNewStatus('Pending')
     setShowAddForm(false)
   }
@@ -287,7 +306,7 @@ export default function BookingsPage({
                   onClick={() => setStatusFilter(status)}
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                     statusFilter === status
-                      ? 'bg-white text-stone-850 shadow-sm'
+                      ? 'bg-white text-stone-800 shadow-sm'
                       : 'text-stone-400 hover:text-stone-700'
                   }`}
                 >
@@ -321,10 +340,13 @@ export default function BookingsPage({
                           selectedBooking?.id === b.id ? 'bg-amber-500/5 hover:bg-amber-500/5' : ''
                         }`}
                       >
-                        <td className="py-3.5 px-6 font-mono text-[11px] text-stone-500">{b.id}</td>
+                        <td className="py-3.5 px-6 font-mono text-[11px] text-stone-500">
+                          {b.id}
+                          {b.guests > 1 && <span className="ml-1.5 text-[9px] text-stone-400">· {b.guests} guests</span>}
+                        </td>
                         <td className="py-3.5 px-6 font-semibold text-stone-900">{b.client}</td>
                         <td className="py-3.5 px-6 text-stone-600">{b.package}</td>
-                        <td className="py-3.5 px-6 font-bold text-stone-800">{b.amount}</td>
+                        <td className="py-3.5 px-6 font-bold text-stone-800">₹{Number(b.amount).toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-6 text-stone-500">{b.date}</td>
                         <td className="py-3.5 px-6">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -430,12 +452,12 @@ export default function BookingsPage({
               <div className="border-t border-stone-100 pt-4 space-y-2.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-stone-500 font-medium">Package Cost</span>
-                  <span className="font-semibold text-stone-800">{selectedBooking.amount}</span>
+                  <span className="font-semibold text-stone-800">₹{Number(selectedBooking.amount).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-stone-500 font-medium">Deposit Collected</span>
                   <span className="font-semibold text-stone-800">
-                    {selectedBooking.status === 'Paid' ? selectedBooking.amount : '₹1,000'}
+                    {selectedBooking.status === 'Paid' ? `₹${Number(selectedBooking.amount).toLocaleString('en-IN')}` : '₹1,000'}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs border-t border-stone-100 pt-2">
@@ -445,6 +467,33 @@ export default function BookingsPage({
                   </span>
                 </div>
               </div>
+
+              {/* Group Members */}
+              {selectedBooking.groupMembers?.length > 1 && (
+                <div className="border-t border-stone-100 pt-4 space-y-2.5">
+                  <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">
+                    Group Members ({selectedBooking.guests} travellers)
+                  </h4>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {selectedBooking.groupMembers.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs bg-stone-50 rounded-lg px-3 py-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-semibold text-stone-800 block truncate">{m.name || `Guest ${i + 1}`}</span>
+                          <span className="text-[10px] text-stone-400">
+                            {m.dietary !== 'None' && <span className="mr-2">Diet: {m.dietary}</span>}
+                            {m.seat && <span>Seat: {m.seat}</span>}
+                            {m.passport && <span className="ml-2">Passport: {m.passport}</span>}
+                            {!m.dietary && !m.seat && !m.passport && 'No details'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="grid grid-cols-2 gap-2 pt-2">
@@ -493,8 +542,9 @@ export default function BookingsPage({
                     setEditBookingObj(selectedBooking)
                     setEditClient(selectedBooking.client)
                     setEditPackage(selectedBooking.package)
-                    setEditAmount(selectedBooking.amount.replace(/[^0-9.-]+/g, ""))
+                    setEditAmount(String(selectedBooking.amount))
                     setEditDate(parseDateToInputFormat(selectedBooking.date))
+                    setEditGuests(String(selectedBooking.guests || 1))
                     setEditStatus(selectedBooking.status)
                     setShowEditModal(true)
                   }}
@@ -552,7 +602,7 @@ export default function BookingsPage({
                   required
                   value={newClient}
                   onChange={(e) => setNewClient(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                 >
                   <option value="">Select a client...</option>
                   {clients.map(c => (
@@ -574,7 +624,7 @@ export default function BookingsPage({
                       setNewAmount(selectedPkg.basePrice.toString())
                     }
                   }}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                 >
                   <option value="">Select a package...</option>
                   {packages.map(p => (
@@ -583,7 +633,7 @@ export default function BookingsPage({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (INR)</label>
                   <input
@@ -592,7 +642,18 @@ export default function BookingsPage({
                     placeholder="4500"
                     value={newAmount}
                     onChange={(e) => setNewAmount(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Guests</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newGuests}
+                    onChange={(e) => setNewGuests(e.target.value)}
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -602,7 +663,7 @@ export default function BookingsPage({
                     required
                     value={newDate}
                     onChange={(e) => setNewDate(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all cursor-pointer"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all cursor-pointer"
                   />
                 </div>
               </div>
@@ -629,7 +690,7 @@ export default function BookingsPage({
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -668,7 +729,7 @@ export default function BookingsPage({
                   required
                   value={editClient}
                   onChange={(e) => setEditClient(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                 >
                   <option value="">Select a client...</option>
                   {clients.map(c => (
@@ -690,7 +751,7 @@ export default function BookingsPage({
                       setEditAmount(selectedPkg.basePrice.toString())
                     }
                   }}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                 >
                   <option value="">Select a package...</option>
                   {packages.map(p => (
@@ -699,7 +760,7 @@ export default function BookingsPage({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Amount (INR)</label>
                   <input
@@ -708,7 +769,18 @@ export default function BookingsPage({
                     placeholder="4500"
                     value={editAmount}
                     onChange={(e) => setEditAmount(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">Guests</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editGuests}
+                    onChange={(e) => setEditGuests(e.target.value)}
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -718,7 +790,7 @@ export default function BookingsPage({
                     required
                     value={editDate}
                     onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-850 outline-none transition-all cursor-pointer"
+                    className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2.5 text-xs text-stone-800 outline-none transition-all cursor-pointer"
                   />
                 </div>
               </div>
@@ -745,7 +817,7 @@ export default function BookingsPage({
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -775,14 +847,14 @@ export default function BookingsPage({
             </div>
             
             <p className="text-xs text-stone-500 leading-normal">
-              Are you sure you want to permanently delete booking <strong className="text-stone-850 font-bold">{bookingToDelete.id}</strong> for <strong className="text-stone-850 font-bold">{bookingToDelete.client}</strong>? This will release the package slot and cannot be undone.
+              Are you sure you want to permanently delete booking <strong className="text-stone-800 font-bold">{bookingToDelete.id}</strong> for <strong className="text-stone-800 font-bold">{bookingToDelete.client}</strong>? This will release the package slot and cannot be undone.
             </p>
 
             <div className="pt-2 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setBookingToDelete(null)}
-                className="px-4 py-2 border border-stone-250 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                className="px-4 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
               >
                 Cancel
               </button>

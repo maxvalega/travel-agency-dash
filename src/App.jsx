@@ -4,6 +4,7 @@ import ClientsPage from './components/ClientsPage'
 import PackagesPage from './components/PackagesPage'
 import ReportsPage from './components/ReportsPage'
 import SettingsPage from './components/SettingsPage'
+import TestimonialsPage from './components/TestimonialsPage'
 import logo from './assets/logo.png'
 import { 
   getQueue, 
@@ -34,6 +35,8 @@ const initialSettings = {
 
 const initialBookings = []
 
+const initialTestimonials = []
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,12 +60,14 @@ function App() {
   const [packages, rawSetPackages] = useState(initialPackages)
   const [settings, rawSetSettings] = useState(initialSettings)
   const [bookings, rawSetBookings] = useState(initialBookings)
+  const [testimonials, rawSetTestimonials] = useState(initialTestimonials)
 
   // Use refs to avoid closure staleness during async API updates
   const clientsRef = useRef(clients)
   const packagesRef = useRef(packages)
   const bookingsRef = useRef(bookings)
   const settingsRef = useRef(settings)
+  const testimonialsRef = useRef(testimonials)
 
   // Holds the in-flight PUT controller so a fresh settings change cancels the prior one
   const settingsAbortRef = useRef(null)
@@ -73,6 +78,7 @@ function App() {
   useEffect(() => { packagesRef.current = packages }, [packages])
   useEffect(() => { bookingsRef.current = bookings }, [bookings])
   useEffect(() => { settingsRef.current = settings }, [settings])
+  useEffect(() => { testimonialsRef.current = testimonials }, [testimonials])
 
   // Setup functions for Health Check and Sync
   const performHealthAndSync = async (showNotificationOnSuccess = false) => {
@@ -91,9 +97,11 @@ function App() {
         setIsSyncing(true)
         const result = await processSyncQueue(addNotification)
         setIsSyncing(false)
-        setQueueItems(getQueue())
-        // After syncing, fetch fresh data to sync UI
-        await fetchFreshData()
+        const remainingQueue = getQueue()
+        setQueueItems(remainingQueue)
+        if (remainingQueue.length === 0) {
+          await fetchFreshData()
+        }
       } else if (showNotificationOnSuccess) {
         addNotification("Connection healthy: backend is online.", "success")
       }
@@ -131,6 +139,13 @@ function App() {
         rawSetSettings(data)
         localStorage.setItem('kraft_cached_settings', JSON.stringify(data))
       }
+
+      const testimonialsRes = await fetch(`${API_BASE_URL}/testimonials`)
+      if (testimonialsRes.ok) {
+        const data = await testimonialsRes.json()
+        rawSetTestimonials(data)
+        localStorage.setItem('kraft_cached_testimonials', JSON.stringify(data))
+      }
     } catch (err) {
       console.warn("Failed to fetch fresh data:", err)
     }
@@ -150,6 +165,9 @@ function App() {
     
     const cachedSettings = localStorage.getItem('kraft_cached_settings')
     if (cachedSettings) rawSetSettings(JSON.parse(cachedSettings))
+
+    const cachedTestimonials = localStorage.getItem('kraft_cached_testimonials')
+    if (cachedTestimonials) rawSetTestimonials(JSON.parse(cachedTestimonials))
 
     // 2. Perform initial health check and sync queue
     performHealthAndSync()
@@ -176,22 +194,21 @@ function App() {
     
     try {
       const startTime = Date.now()
+      console.log(`[DEBUG] syncRequest: ${method} ${url}`)
       const res = await fetch(url, {
         method,
         headers,
         body: bodyStr
       })
+      console.log(`[DEBUG] syncRequest response: ${res.status} ${res.statusText} for ${method} ${url}`)
       
       if (!res.ok) {
-        if (res.status >= 500) {
-          throw new Error(`Server returned ${res.status}`)
-        }
-        addNotification(`Request failed: ${description} (Error ${res.status})`, 'warning')
-        return
+        throw new Error(`Server returned ${res.status}`)
       }
       
       const latency = Date.now() - startTime
       setServerStatus({ online: true, latency, lastChecked: new Date().toLocaleTimeString() })
+      return method !== 'DELETE' ? await res.json() : null
     } catch (err) {
       console.warn(`Request failed for "${description}", queueing offline:`, err)
       setServerStatus(prev => ({ ...prev, online: false, latency: null }))
@@ -206,6 +223,7 @@ function App() {
       setQueueItems(updatedQueue)
       
       addNotification(`Saved locally: "${description}" will sync when online.`, 'info')
+      return null
     }
   }
 
@@ -260,8 +278,12 @@ function App() {
       } else {
         for (const item of resolved) {
           const original = current.find(p => p.id === item.id)
-          if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-            await syncRequest(`${API_BASE_URL}/packages/${item.id}`, 'PUT', item, `Updated package "${item.name}"`)
+          const changed = original && JSON.stringify(original) !== JSON.stringify(item)
+          console.log(`[DEBUG] setPackages edit: id=${item.id}, found=${!!original}, changed=${changed}`)
+          if (changed) {
+            console.log(`[DEBUG] Sending PUT to ${API_BASE_URL}/packages/${item.id}`, { original, updated: item })
+            const result = await syncRequest(`${API_BASE_URL}/packages/${item.id}`, 'PUT', item, `Updated package "${item.name}"`)
+            console.log(`[DEBUG] PUT result:`, result)
           }
         }
       }
@@ -323,6 +345,47 @@ function App() {
     }, 250)
   }
 
+  const setTestimonials = async (newVal) => {
+    const current = testimonialsRef.current
+    const resolved = typeof newVal === 'function' ? newVal(current) : newVal
+    rawSetTestimonials(resolved)
+    localStorage.setItem('kraft_cached_testimonials', JSON.stringify(resolved))
+
+    try {
+      let working = resolved
+      if (resolved.length > current.length) {
+        const added = resolved.filter(item => !current.some(t => t.id === item.id))
+        for (const item of added) {
+          const serverItem = await syncRequest(`${API_BASE_URL}/testimonials`, 'POST', item, `Created testimonial from "${item.name}"`)
+          if (serverItem && serverItem.id !== item.id) {
+            working = working.map(t => t.id === item.id ? { ...t, id: serverItem.id } : t)
+            rawSetTestimonials(working)
+            localStorage.setItem('kraft_cached_testimonials', JSON.stringify(working))
+          }
+        }
+      } else if (resolved.length < current.length) {
+        const deleted = current.filter(item => !resolved.some(r => r.id === item.id))
+        for (const item of deleted) {
+          await syncRequest(`${API_BASE_URL}/testimonials/${item.id}`, 'DELETE', null, `Deleted testimonial from "${item.name}"`)
+        }
+      } else {
+        for (const item of resolved) {
+          const original = current.find(t => t.id === item.id)
+          if (original && JSON.stringify(original) !== JSON.stringify(item)) {
+            const serverItem = await syncRequest(`${API_BASE_URL}/testimonials/${item.id}`, 'PUT', item, `Updated testimonial from "${item.name}"`)
+            if (serverItem && serverItem.id !== item.id) {
+              working = working.map(t => t.id === item.id ? { ...t, id: serverItem.id } : t)
+              rawSetTestimonials(working)
+              localStorage.setItem('kraft_cached_testimonials', JSON.stringify(working))
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync testimonials to backend:', err)
+    }
+  }
+
   function addNotification(text, type = 'system') {
     const newNotif = {
       id: Date.now(),
@@ -335,7 +398,7 @@ function App() {
   }
 
   // Dynamic Dashboard Stats Calculations — Indian Tier-2 travel agency
-  const parseAmt = (b) => parseFloat((b.amount || '').replace(/[^0-9.-]+/g, '')) || 0
+  const parseAmt = (b) => Number(b.amount) || 0
   const parseDate = (b) => {
     // b.date is now the formatted "Jun 25, 2026" string from mapBookingToFrontend
     if (!b.date) return null
@@ -436,7 +499,7 @@ function App() {
     })
     const colors = [
       'bg-amber-100 text-amber-800',
-      'bg-orange-100 text-orange-850 border-orange-200/40',
+      'bg-orange-100 text-orange-700 border-orange-200/40',
       'bg-yellow-100 text-yellow-800',
       'bg-emerald-100 text-emerald-800',
       'bg-rose-100 text-rose-800'
@@ -522,6 +585,7 @@ function App() {
               { id: 'clients', label: 'Clients', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
               { id: 'packages', label: 'Packages', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
               { id: 'reports', label: 'Reports', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+              { id: 'testimonials', label: 'Testimonials', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
               { id: 'settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
             ].map((link) => (
               <button
@@ -588,7 +652,7 @@ function App() {
               placeholder="Search bookings, clients, packages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-xl py-2.5 pl-11 pr-4 text-xs text-stone-850 placeholder-stone-400 outline-none focus:ring-1 focus:ring-amber-500 transition-all duration-300"
+              className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-xl py-2.5 pl-11 pr-4 text-xs text-stone-800 placeholder-stone-400 outline-none focus:ring-1 focus:ring-amber-500 transition-all duration-300"
             />
           </div>
 
@@ -630,7 +694,7 @@ function App() {
                   )}
                 </span>
                 
-                <span className="text-[10px] font-bold text-stone-750 hidden sm:inline">
+                <span className="text-[10px] font-bold text-stone-700 hidden sm:inline">
                   {isSyncing ? 'Syncing...' : serverStatus.online ? 'Online' : serverStatus.online === false ? 'Offline' : 'Connecting...'}
                 </span>
                 
@@ -891,7 +955,7 @@ function App() {
                           onClick={() => setAgentStatus(status)}
                           className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all duration-300 flex items-center justify-center gap-1.5 ${
                             agentStatus === status
-                              ? 'bg-amber-500/10 border-amber-300 text-amber-750'
+                              ? 'bg-amber-500/10 border-amber-300 text-amber-700'
                               : 'bg-stone-50/50 border-stone-200 text-stone-500 hover:bg-stone-50'
                           }`}
                         >
@@ -932,7 +996,7 @@ function App() {
         <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 flex-1 max-w-7xl w-full mx-auto animate-in fade-in duration-300">
           {activeTab === 'dashboard' && (
             <>
-              {/* Quick Statistics Grid — Indian Tier-2 travel agency */}
+              {/* Quick Statistics Grid */}
               <section className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5">
                 {[
                   {
@@ -942,8 +1006,8 @@ function App() {
                       ? 'No data last month'
                       : `${monthOverMonth >= 0 ? '+' : ''}${monthOverMonth.toFixed(1)}% vs last month`,
                     subTone: monthOverMonth === null ? 'neutral' : monthOverMonth >= 0 ? 'good' : 'bad',
-                    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-                    color: 'bg-amber-50 text-amber-700 border-amber-250/20'
+                    icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+                    bg: 'bg-amber-100', iconColor: 'text-amber-700'
                   },
                   {
                     label: 'Active Bookings',
@@ -951,31 +1015,31 @@ function App() {
                     sub: `${bookings.filter(b => b.status === 'Pending').length} pending`,
                     subTone: 'neutral',
                     icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-                    color: 'bg-orange-50 text-orange-700 border-orange-250/20'
+                    bg: 'bg-orange-100', iconColor: 'text-orange-700'
                   },
                   {
                     label: 'Outstanding Payments',
                     value: formatINRCompact(outstandingRevenue),
                     sub: 'Awaiting collection',
                     subTone: 'bad',
-                    icon: 'M3 10h18M5 14h14M5 18h14M5 6h14',
-                    color: 'bg-rose-50 text-rose-700 border-rose-250/20'
+                    icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z',
+                    bg: 'bg-rose-100', iconColor: 'text-rose-700'
                   },
                   {
                     label: 'Departures (14d)',
                     value: upcomingDepartures.length.toString(),
-                    sub: upcomingDepartures.length > 0 ? 'Next stop: this week' : 'No upcoming trips',
+                    sub: upcomingDepartures.length > 0 ? `${upcomingDepartures.length} trips this window` : 'No upcoming trips',
                     subTone: upcomingDepartures.length > 0 ? 'good' : 'neutral',
-                    icon: 'M3 12l2-2m0 0l7-7 7 7m-9 2v8a2 2 0 002 2h2a2 2 0 002-2v-8m-6 0h6',
-                    color: 'bg-emerald-50 text-emerald-700 border-emerald-250/20'
+                    icon: 'M12 19V5m0 0l-7 7m7-7l7 7',
+                    bg: 'bg-emerald-100', iconColor: 'text-emerald-700'
                   },
                   {
                     label: 'Avg Booking Value',
                     value: formatINRCompact(avgBookingValue),
                     sub: `${bookings.length} total bookings`,
                     subTone: 'neutral',
-                    icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
-                    color: 'bg-blue-50 text-blue-700 border-blue-250/20'
+                    icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+                    bg: 'bg-blue-100', iconColor: 'text-blue-700'
                   },
                   {
                     label: 'New Clients (Month)',
@@ -983,30 +1047,34 @@ function App() {
                     sub: `${clients.length} total profiles`,
                     subTone: 'neutral',
                     icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0M3 20a6 6 0 0112 0v1H3v-1z',
-                    color: 'bg-stone-100 text-stone-700 border-stone-250/20'
+                    bg: 'bg-stone-100', iconColor: 'text-stone-700'
                   }
                 ].map((stat, i) => (
-                  <div key={i} className="bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 hover:border-stone-300 transition-all duration-300 shadow-sm relative group overflow-hidden">
-                    <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <span className="text-xs font-semibold text-stone-500 group-hover:text-stone-700 transition-colors duration-300 leading-tight">
+                  <div key={i} className="bg-white border border-stone-200/60 rounded-xl p-4 sm:p-5 hover:border-amber-200/50 hover:shadow-md transition-all duration-300 shadow-sm group">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <span className="text-[11px] font-semibold text-stone-500 group-hover:text-stone-700 transition-colors leading-tight">
                         {stat.label}
                       </span>
-                      <div className={`w-8.5 h-8.5 rounded-lg ${stat.color} flex items-center justify-center shadow-sm border border-stone-200/20 shrink-0`}>
-                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.iconColor} flex items-center justify-center shrink-0`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-stone-900 mb-1 tracking-tight">
+                    <h3 className="text-xl font-bold text-stone-900 mb-1.5 tracking-tight">
                       {stat.value}
                     </h3>
-                    <p className={`text-[10px] font-medium leading-normal ${
-                      stat.subTone === 'good' ? 'text-emerald-600' :
-                      stat.subTone === 'bad'  ? 'text-rose-600' :
-                                               'text-stone-400'
-                    }`}>
-                      {stat.sub}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {stat.subTone === 'good' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                      {stat.subTone === 'bad' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
+                      <p className={`text-[11px] font-medium ${
+                        stat.subTone === 'good' ? 'text-emerald-600' :
+                        stat.subTone === 'bad'  ? 'text-rose-600' :
+                                                 'text-stone-400'
+                      }`}>
+                        {stat.sub}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </section>
@@ -1053,7 +1121,7 @@ function App() {
                                 <td className="py-3.5 px-6 font-mono text-[11px] text-stone-500">{b.id}</td>
                                 <td className="py-3.5 px-6 font-semibold text-stone-900">{b.client}</td>
                                 <td className="py-3.5 px-6 text-stone-600">{b.package}</td>
-                                <td className="py-3.5 px-6 font-bold text-stone-850">{b.amount}</td>
+                                <td className="py-3.5 px-6 font-bold text-stone-800">₹{Number(b.amount).toLocaleString('en-IN')}</td>
                                 <td className="py-3.5 px-6 text-stone-500">{b.date}</td>
                                 <td className="py-3.5 px-6 text-right">
                                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -1151,7 +1219,7 @@ function App() {
                           Clients not contacted in the last 7 days.
                         </p>
                       </div>
-                      <span className="text-xs font-bold px-2 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-250/20">
+                      <span className="text-xs font-bold px-2 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-200/20">
                         {pendingFollowUps.length}
                       </span>
                     </div>
@@ -1216,7 +1284,7 @@ function App() {
                       </button>
                       <button 
                         onClick={() => setActiveTab('reports')}
-                        className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 border border-stone-250/70 text-stone-700 rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 border border-stone-200/70 text-stone-700 rounded-xl text-xs font-bold shadow-sm active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <svg className="w-4.5 h-4.5 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1272,6 +1340,15 @@ function App() {
               packages={packages}
               clients={clients}
               settings={settings}
+            />
+          )}
+
+          {activeTab === 'testimonials' && (
+            <TestimonialsPage 
+              testimonials={testimonials}
+              setTestimonials={setTestimonials}
+              addNotification={addNotification}
+              packages={packages}
             />
           )}
 

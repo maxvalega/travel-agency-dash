@@ -355,7 +355,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                       placeholder="e.g., Maldives Paradise Escape"
                       value={offerForm.title}
                       onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
-                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
 
@@ -366,7 +366,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                       placeholder="e.g., Book a luxury 5-day overwater villa stay and receive a complimentary couples spa."
                       value={offerForm.subtitle}
                       onChange={(e) => setOfferForm({ ...offerForm, subtitle: e.target.value })}
-                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
 
@@ -377,7 +377,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                       placeholder="e.g., View Packages"
                       value={offerForm.buttonText}
                       onChange={(e) => setOfferForm({ ...offerForm, buttonText: e.target.value })}
-                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
 
@@ -386,7 +386,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                     <select
                       value={offerForm.targetPage}
                       onChange={(e) => setOfferForm({ ...offerForm, targetPage: e.target.value })}
-                      className="w-full bg-white border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-stone-855 outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-white border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                     >
                       <option value="destinations">Explore Packages (Destinations)</option>
                       <option value="booking">Inquire Form (Booking)</option>
@@ -435,7 +435,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
 
                     {/* Presets */}
                     <div className="space-y-1.5">
-                      <span className="block text-[8px] font-bold text-stone-450 uppercase tracking-wider">Quick Presets:</span>
+                      <span className="block text-[8px] font-bold text-stone-400 uppercase tracking-wider">Quick Presets:</span>
                       <div className="flex flex-wrap gap-2">
                         {[
                           { name: 'Maldives Paradise', url: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1000&q=80' },
@@ -468,7 +468,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                       setIsFormOpen(false)
                       setEditingOfferId(null)
                     }}
-                    className="text-[10px] font-bold px-3 py-1.5 bg-stone-100 hover:bg-stone-250 text-stone-700 rounded-lg transition-all"
+                    className="text-[10px] font-bold px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg transition-all"
                   >
                     Cancel
                   </button>
@@ -511,7 +511,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                     <div className="flex gap-1 shrink-0">
                       <button
                         onClick={() => handleEditOffer(offer)}
-                        className="p-1.5 text-stone-500 hover:text-stone-850 hover:bg-stone-200/50 rounded-lg transition-all"
+                        className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 rounded-lg transition-all"
                         title="Edit Offer"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -548,7 +548,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
               <div>
                 <div className="flex justify-between text-xs font-semibold text-stone-800 mb-1">
                   <span>Standard Markup</span>
-                  <span className="text-amber-750 font-bold">{defaultMarkup}%</span>
+                  <span className="text-amber-700 font-bold">{defaultMarkup}%</span>
                 </div>
                 <input
                   type="range"
@@ -563,7 +563,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
               <div>
                 <div className="flex justify-between text-xs font-semibold text-stone-800 mb-1">
                   <span>Agent Commission Share</span>
-                  <span className="text-amber-750 font-bold">{defaultAgentSplit}% of net margin</span>
+                  <span className="text-amber-700 font-bold">{defaultAgentSplit}% of net margin</span>
                 </div>
                 <input
                   type="range"
@@ -591,7 +591,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                   type="text"
                   value={agencyName}
                   onChange={(e) => setAgencyName(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                 />
               </div>
 
@@ -601,7 +601,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                   rows="2"
                   value={agencyAddress}
                   onChange={(e) => setAgencyAddress(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none resize-none"
                 ></textarea>
               </div>
 
@@ -611,7 +611,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                   type="text"
                   value={agencyPhone}
                   onChange={(e) => setAgencyPhone(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                 />
               </div>
 
@@ -621,7 +621,7 @@ export default function SettingsPage({ settings = {}, setSettings, addNotificati
                   type="email"
                   value={agencyEmail}
                   onChange={(e) => setAgencyEmail(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-250 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-850 outline-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-amber-500 rounded-lg p-2 text-xs text-stone-800 outline-none"
                 />
               </div>
 
