@@ -74,6 +74,29 @@ function App() {
   // Pending settings payload + timer id for debounced PUT
   const settingsDebounceRef = useRef({ timeoutId: null, pending: null })
 
+  const statusDropdownRef = useRef(null)
+  const notificationsRef = useRef(null)
+  const profileRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showStatusDropdown && statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setShowStatusDropdown(false)
+      }
+      if (showNotifications && notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setShowNotifications(false)
+      }
+      if (showProfile && profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfile(false)
+      }
+    }
+
+    if (showStatusDropdown || showNotifications || showProfile) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showStatusDropdown, showNotifications, showProfile])
+
   useEffect(() => { clientsRef.current = clients }, [clients])
   useEffect(() => { packagesRef.current = packages }, [packages])
   useEffect(() => { bookingsRef.current = bookings }, [bookings])
@@ -659,7 +682,7 @@ function App() {
           {/* Interactive User & Notification Controls */}
           <div className="flex items-center gap-5 relative">
             {/* Server Status Badge & Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={statusDropdownRef}>
               <button
                 onClick={() => {
                   setShowStatusDropdown(!showStatusDropdown)
@@ -809,7 +832,7 @@ function App() {
             </div>
 
             {/* Notifications Button */}
-            <div className="relative">
+            <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => {
                   setShowNotifications(!showNotifications)
@@ -895,7 +918,7 @@ function App() {
             </div>
 
             {/* Profile Dropdown Toggle */}
-            <div className="flex items-center gap-3 border-l border-stone-200 pl-5 relative">
+            <div className="flex items-center gap-3 border-l border-stone-200 pl-5 relative" ref={profileRef}>
               <button
                 onClick={() => {
                   setShowProfile(!showProfile)
